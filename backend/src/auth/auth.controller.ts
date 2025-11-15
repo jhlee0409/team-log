@@ -1,6 +1,8 @@
 import { Controller, Post, Body, UseGuards, Get, Req } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
+import { ValidateGithubTokenDto } from './dto/validate-github-token.dto';
+import { RequestWithUser } from './interfaces/request-with-user.interface';
 
 @Controller('auth')
 export class AuthController {
@@ -8,8 +10,8 @@ export class AuthController {
 
   // For VS Code extension - validate GitHub token from vscode.authentication
   @Post('github/token')
-  async validateGithubToken(@Body('token') token: string) {
-    const user = await this.authService.validateGithubToken(token);
+  async validateGithubToken(@Body() dto: ValidateGithubTokenDto) {
+    const user = await this.authService.validateGithubToken(dto.token);
 
     if (!user) {
       return { success: false, message: 'Invalid GitHub token' };
@@ -28,13 +30,13 @@ export class AuthController {
 
   @Get('github/callback')
   @UseGuards(AuthGuard('github'))
-  async githubCallback(@Req() req) {
+  async githubCallback(@Req() req: RequestWithUser) {
     return this.authService.generateToken(req.user);
   }
 
   @Get('me')
   @UseGuards(AuthGuard('jwt'))
-  async getMe(@Req() req) {
+  async getMe(@Req() req: RequestWithUser) {
     return req.user;
   }
 }

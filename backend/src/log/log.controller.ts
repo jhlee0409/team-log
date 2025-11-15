@@ -1,6 +1,9 @@
 import { Controller, Get, Query, Param, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { LogService } from './log.service';
+import { GetLogDto } from './dto/get-log.dto';
+import { GetLogsRangeDto } from './dto/get-logs-range.dto';
+import { RequestWithUser } from '../auth/interfaces/request-with-user.interface';
 
 @Controller('logs')
 @UseGuards(AuthGuard('jwt'))
@@ -10,9 +13,9 @@ export class LogController {
   @Get(':workspaceId')
   async getLog(
     @Param('workspaceId') workspaceId: string,
-    @Query('date') date?: string,
+    @Query() query: GetLogDto,
   ) {
-    const queryDate = date ? new Date(date) : new Date();
+    const queryDate = query.date ? new Date(query.date) : new Date();
     queryDate.setHours(0, 0, 0, 0);
 
     return this.logService.getLog(workspaceId, queryDate);
@@ -21,7 +24,7 @@ export class LogController {
   @Get(':workspaceId/yesterday-tasks')
   async getYesterdayTasks(
     @Param('workspaceId') workspaceId: string,
-    @Req() req,
+    @Req() req: RequestWithUser,
   ) {
     const tasks = await this.logService.extractYesterdayTasks(
       workspaceId,
@@ -34,11 +37,10 @@ export class LogController {
   @Get(':workspaceId/range')
   async getLogs(
     @Param('workspaceId') workspaceId: string,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
+    @Query() query: GetLogsRangeDto,
   ) {
-    const start = startDate ? new Date(startDate) : undefined;
-    const end = endDate ? new Date(endDate) : undefined;
+    const start = query.startDate ? new Date(query.startDate) : undefined;
+    const end = query.endDate ? new Date(query.endDate) : undefined;
 
     if (start) start.setHours(0, 0, 0, 0);
     if (end) end.setHours(23, 59, 59, 999);

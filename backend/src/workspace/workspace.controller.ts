@@ -2,6 +2,9 @@ import { Controller, Get, Post, Delete, Body, Param, UseGuards, Req } from '@nes
 import { AuthGuard } from '@nestjs/passport';
 import { WorkspaceService } from './workspace.service';
 import { WorkspaceAdminGuard } from '../auth/guards/admin.guard';
+import { CreateWorkspaceDto } from './dto/create-workspace.dto';
+import { InviteMemberDto } from './dto/invite-member.dto';
+import { RequestWithUser } from '../auth/interfaces/request-with-user.interface';
 
 @Controller('workspaces')
 @UseGuards(AuthGuard('jwt'))
@@ -9,12 +12,12 @@ export class WorkspaceController {
   constructor(private workspaceService: WorkspaceService) {}
 
   @Post()
-  async create(@Body('name') name: string, @Req() req) {
-    return this.workspaceService.create(name, req.user.id);
+  async create(@Body() dto: CreateWorkspaceDto, @Req() req: RequestWithUser) {
+    return this.workspaceService.create(dto.name, req.user.id);
   }
 
   @Get()
-  async getUserWorkspaces(@Req() req) {
+  async getUserWorkspaces(@Req() req: RequestWithUser) {
     return this.workspaceService.findUserWorkspaces(req.user.id);
   }
 
@@ -27,11 +30,11 @@ export class WorkspaceController {
   @UseGuards(WorkspaceAdminGuard)
   async inviteMember(
     @Param('workspaceId') workspaceId: string,
-    @Body('githubUsername') githubUsername: string,
+    @Body() dto: InviteMemberDto,
   ) {
     return this.workspaceService.inviteMemberByGithubUsername(
       workspaceId,
-      githubUsername,
+      dto.githubUsername,
     );
   }
 
