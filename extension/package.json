@@ -1,0 +1,78 @@
+{
+  "name": "teamlog",
+  "displayName": "TeamLog",
+  "description": "Effortless team collaboration in VS Code",
+  "version": "1.0.0",
+  "publisher": "teamlog",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "teamlog",
+          "title": "TeamLog",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "teamlog": [
+        {
+          "type": "webview",
+          "id": "teamlog.panel",
+          "name": "Team Log"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "teamlog.openPanel",
+        "title": "TeamLog: Open Panel"
+      },
+      {
+        "command": "teamlog.refresh",
+        "title": "TeamLog: Refresh"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "webpack --mode production",
+    "watch": "concurrently \"webpack --mode development --watch\" \"tsc --watch\"",
+    "compile": "tsc -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "dependencies": {
+    "@codemirror/state": "^6.4.0",
+    "@codemirror/view": "^6.23.0",
+    "@codemirror/language": "^6.10.0",
+    "@codemirror/commands": "^6.3.3",
+    "@codemirror/lang-markdown": "^6.2.4",
+    "y-codemirror.next": "^0.3.5",
+    "y-websocket": "^1.5.0",
+    "yjs": "^13.6.10",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "@types/react": "^18.2.47",
+    "@types/react-dom": "^18.2.18",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.17.0",
+    "@typescript-eslint/parser": "^6.17.0",
+    "concurrently": "^8.2.2",
+    "css-loader": "^6.8.1",
+    "eslint": "^8.56.0",
+    "style-loader": "^3.3.3",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.3.3",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4"
+  }
+}

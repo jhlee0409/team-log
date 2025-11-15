@@ -1,0 +1,20 @@
+{
+  "name": "teamlog-monorepo",
+  "version": "1.0.0",
+  "description": "TeamLog - Effortless team collaboration in VS Code",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "extension"
+  ],
+  "scripts": {
+    "backend": "cd backend && npm run start:dev",
+    "extension": "cd extension && npm run watch",
+    "dev": "concurrently \"npm run backend\" \"npm run extension\"",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
