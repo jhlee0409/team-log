@@ -57,8 +57,22 @@ export class WorkspaceService {
     return workspace;
   }
 
-  async findUserWorkspaces(userId: string) {
-    return this.prisma.workspace.findMany({
+  async findUserWorkspaces(userId: string, page: number = 1, limit: number = 20) {
+    const skip = (page - 1) * limit;
+
+    // Get total count for pagination
+    const total = await this.prisma.workspace.count({
+      where: {
+        members: {
+          some: {
+            userId,
+          },
+        },
+      },
+    });
+
+    // Get paginated results
+    const data = await this.prisma.workspace.findMany({
       where: {
         members: {
           some: {
@@ -73,7 +87,22 @@ export class WorkspaceService {
           },
         },
       },
+      skip,
+      take: limit,
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async inviteMemberByGithubUsername(

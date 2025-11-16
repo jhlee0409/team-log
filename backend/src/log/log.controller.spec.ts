@@ -3,6 +3,8 @@ import { LogController } from "./log.controller";
 import { LogService } from "./log.service";
 import { GetLogDto } from "./dto/get-log.dto";
 import { GetLogsRangeDto } from "./dto/get-logs-range.dto";
+import { WorkspaceMemberGuard } from "../auth/guards/workspace-member.guard";
+import { PrismaService } from "../prisma/prisma.service";
 
 describe("LogController", () => {
   let controller: LogController;
@@ -31,6 +33,12 @@ describe("LogController", () => {
     getLogs: jest.fn(),
   };
 
+  const mockPrismaService = {
+    workspaceMember: {
+      findUnique: jest.fn(),
+    },
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [LogController],
@@ -39,6 +47,11 @@ describe("LogController", () => {
           provide: LogService,
           useValue: mockLogService,
         },
+        WorkspaceMemberGuard,
+        {
+          provide: PrismaService,
+          useValue: mockPrismaService,
+        },
       ],
     }).compile();
 
@@ -46,6 +59,14 @@ describe("LogController", () => {
     logService = module.get<LogService>(LogService);
 
     jest.clearAllMocks();
+
+    // Mock workspace membership check to always pass for unit tests
+    // (Authorization tests should be in workspace-member.guard.spec.ts)
+    mockPrismaService.workspaceMember.findUnique.mockResolvedValue({
+      userId: mockUser.id,
+      workspaceId: "workspace-123",
+      role: "MEMBER",
+    });
   });
 
   it("should be defined", () => {

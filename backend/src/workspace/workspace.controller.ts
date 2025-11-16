@@ -7,6 +7,7 @@ import {
   Param,
   UseGuards,
   Req,
+  Query,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import {
@@ -20,6 +21,7 @@ import { WorkspaceService } from "./workspace.service";
 import { WorkspaceAdminGuard } from "../auth/guards/admin.guard";
 import { CreateWorkspaceDto } from "./dto/create-workspace.dto";
 import { InviteMemberDto } from "./dto/invite-member.dto";
+import { GetWorkspacesDto } from "./dto/get-workspaces.dto";
 import { RequestWithUser } from "../auth/interfaces/request-with-user.interface";
 
 @ApiTags("workspaces")
@@ -45,16 +47,34 @@ export class WorkspaceController {
 
   @ApiOperation({
     summary: "Get user's workspaces",
-    description: "Returns all workspaces where the authenticated user is a member",
+    description: "Returns all workspaces where the authenticated user is a member (with pagination)",
   })
   @ApiResponse({
     status: 200,
-    description: "List of workspaces",
+    description: "Paginated list of workspaces",
+    schema: {
+      example: {
+        data: [],
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: 50,
+          totalPages: 3,
+        },
+      },
+    },
   })
   @ApiResponse({ status: 401, description: "Unauthorized" })
   @Get()
-  async getUserWorkspaces(@Req() req: RequestWithUser) {
-    return this.workspaceService.findUserWorkspaces(req.user.id);
+  async getUserWorkspaces(
+    @Req() req: RequestWithUser,
+    @Query() query: GetWorkspacesDto,
+  ) {
+    return this.workspaceService.findUserWorkspaces(
+      req.user.id,
+      query.page,
+      query.limit,
+    );
   }
 
   @ApiOperation({

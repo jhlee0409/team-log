@@ -7,7 +7,49 @@ import {
   Min,
   Max,
   MinLength,
+  registerDecorator,
+  ValidationOptions,
+  ValidationArguments,
 } from "class-validator";
+
+// Custom validator to check JWT_SECRET entropy
+function IsStrongSecret(validationOptions?: ValidationOptions) {
+  return function (object: Object, propertyName: string) {
+    registerDecorator({
+      name: "isStrongSecret",
+      target: object.constructor,
+      propertyName: propertyName,
+      options: validationOptions,
+      validator: {
+        validate(value: any, args: ValidationArguments) {
+          if (typeof value !== "string") return false;
+
+          // Check minimum length
+          if (value.length < 32) return false;
+
+          // Check for character diversity (entropy)
+          const hasLowercase = /[a-z]/.test(value);
+          const hasUppercase = /[A-Z]/.test(value);
+          const hasNumber = /\d/.test(value);
+          const hasSpecial = /[@$!%*?&\-_=+#^~]/.test(value);
+
+          // Require at least 3 of 4 character types for good entropy
+          const characterTypeCount = [
+            hasLowercase,
+            hasUppercase,
+            hasNumber,
+            hasSpecial,
+          ].filter(Boolean).length;
+
+          return characterTypeCount >= 3;
+        },
+        defaultMessage(args: ValidationArguments) {
+          return `${args.property} must be at least 32 characters and contain at least 3 of: lowercase, uppercase, numbers, special characters (@$!%*?&-_=+#^~)`;
+        },
+      },
+    });
+  };
+}
 
 export class EnvironmentVariables {
   @IsString()
@@ -17,6 +59,7 @@ export class EnvironmentVariables {
   @MinLength(32, {
     message: "JWT_SECRET must be at least 32 characters for security",
   })
+  @IsStrongSecret()
   JWT_SECRET: string;
 
   @IsOptional()

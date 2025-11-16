@@ -1,11 +1,21 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, BadRequestException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+
+// Maximum log content size: 1MB (in characters)
+const MAX_LOG_CONTENT_LENGTH = 1_000_000;
 
 @Injectable()
 export class LogService {
   constructor(private prisma: PrismaService) {}
 
   async saveLog(workspaceId: string, date: Date, content: string) {
+    // Validate content length to prevent excessive storage and performance issues
+    if (content.length > MAX_LOG_CONTENT_LENGTH) {
+      throw new BadRequestException(
+        `Log content exceeds maximum allowed size of ${MAX_LOG_CONTENT_LENGTH} characters (current: ${content.length})`,
+      );
+    }
+
     return this.prisma.dailyLog.upsert({
       where: {
         workspaceId_date: {

@@ -83,7 +83,7 @@ export class HttpLoggerMiddleware implements NestMiddleware {
 
   /**
    * Mask sensitive fields in request data
-   * Prevents passwords, tokens, secrets, and API keys from being logged
+   * Prevents passwords, tokens, secrets, API keys, and credentials from being logged
    *
    * @param data - Request body or any object
    * @returns Sanitized data with sensitive fields masked
@@ -93,13 +93,53 @@ export class HttpLoggerMiddleware implements NestMiddleware {
       return data;
     }
 
-    const sensitiveKeys = ["password", "token", "secret", "apikey"];
+    // Comprehensive list of sensitive key patterns
+    const sensitiveKeys = [
+      "password",
+      "passwd",
+      "pwd",
+      "token",
+      "accesstoken",
+      "refreshtoken",
+      "idtoken",
+      "secret",
+      "privatekey",
+      "publickey",
+      "apikey",
+      "api_key",
+      "clientsecret",
+      "client_secret",
+      "auth",
+      "authorization",
+      "credential",
+      "credentials",
+      "sessionid",
+      "session_id",
+      "cookie",
+      "csrf",
+      "xsrf",
+      "signature",
+      "salt",
+      "hash",
+      "private",
+      "ssn",
+      "social_security",
+      "credit_card",
+      "creditcard",
+      "card_number",
+      "cvv",
+      "pin",
+      "otp",
+    ];
     const masked = { ...data };
 
     for (const key of Object.keys(masked)) {
       // Case-insensitive matching for sensitive keys
       if (sensitiveKeys.some((sk) => key.toLowerCase().includes(sk))) {
         masked[key] = "***MASKED***";
+      } else if (typeof masked[key] === "object" && masked[key] !== null) {
+        // Recursively mask nested objects
+        masked[key] = this.maskSensitiveData(masked[key]);
       }
     }
 
