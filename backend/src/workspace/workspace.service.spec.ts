@@ -3,6 +3,11 @@ import { WorkspaceService } from "./workspace.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { UserService } from "../user/user.service";
 import { NotFoundException, ForbiddenException } from "@nestjs/common";
+import {
+  WorkspaceNotFoundException,
+  UserNotFoundException,
+  MemberAlreadyExistsException,
+} from "../common/exceptions/business.exception";
 
 describe("WorkspaceService", () => {
   let service: WorkspaceService;
@@ -104,7 +109,7 @@ describe("WorkspaceService", () => {
           members: {
             create: {
               userId: mockUser.id,
-              role: "ADMIN",
+              role: "OWNER",
             },
           },
         },
@@ -128,11 +133,11 @@ describe("WorkspaceService", () => {
       expect(result).toEqual(mockWorkspace);
     });
 
-    it("should throw NotFoundException if workspace not found", async () => {
+    it("should throw WorkspaceNotFoundException if workspace not found", async () => {
       mockPrismaService.workspace.findUnique.mockResolvedValue(null);
 
       await expect(service.findById("non-existent")).rejects.toThrow(
-        NotFoundException,
+        WorkspaceNotFoundException,
       );
     });
   });
@@ -166,7 +171,7 @@ describe("WorkspaceService", () => {
 
   describe("inviteMemberByGithubUsername", () => {
     it("should invite member successfully", async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
+      mockUserService.findByGithubUsername.mockResolvedValue(mockUser);
       mockPrismaService.workspaceMember.findUnique.mockResolvedValue(null);
       mockPrismaService.workspaceMember.create.mockResolvedValue({
         workspaceId: mockWorkspace.id,
@@ -180,19 +185,22 @@ describe("WorkspaceService", () => {
       );
 
       expect(result).toBeDefined();
+      expect(mockUserService.findByGithubUsername).toHaveBeenCalledWith(
+        mockUser.githubUsername,
+      );
       expect(mockPrismaService.workspaceMember.create).toHaveBeenCalled();
     });
 
-    it("should throw NotFoundException if user not found", async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue(null);
+    it("should throw UserNotFoundException if user not found", async () => {
+      mockUserService.findByGithubUsername.mockResolvedValue(null);
 
       await expect(
         service.inviteMemberByGithubUsername(mockWorkspace.id, "nonexistent"),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(UserNotFoundException);
     });
 
-    it("should throw ForbiddenException if user already member", async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
+    it("should throw MemberAlreadyExistsException if user already member", async () => {
+      mockUserService.findByGithubUsername.mockResolvedValue(mockUser);
       mockPrismaService.workspaceMember.findUnique.mockResolvedValue({
         workspaceId: mockWorkspace.id,
         userId: mockUser.id,
@@ -204,7 +212,7 @@ describe("WorkspaceService", () => {
           mockWorkspace.id,
           mockUser.githubUsername,
         ),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toThrow(MemberAlreadyExistsException);
     });
   });
 });

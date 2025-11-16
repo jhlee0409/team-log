@@ -56,53 +56,54 @@ describe("LogService", () => {
   });
 
   describe("getLog", () => {
-    it("should return log from memory for today", async () => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const logKey = `${mockWorkspaceId}_${today.toISOString()}`;
-      const memoryLog = "In-memory log content";
-      service["memoryLogs"].set(logKey, memoryLog);
-
-      const result = await service.getLog(mockWorkspaceId, today);
-
-      expect(result.content).toBe(memoryLog);
-      expect(result.isFromMemory).toBe(true);
-      expect(mockPrismaService.dailyLog.findUnique).not.toHaveBeenCalled();
-    });
-
-    it("should return log from database for past dates", async () => {
-      const pastDate = new Date("2025-01-10");
-      pastDate.setHours(0, 0, 0, 0);
+    it("should return log from database when found", async () => {
+      const date = new Date("2025-01-10");
+      date.setHours(0, 0, 0, 0);
 
       mockPrismaService.dailyLog.findUnique.mockResolvedValue(mockDailyLog);
 
-      const result = await service.getLog(mockWorkspaceId, pastDate);
+      const result = await service.getLog(mockWorkspaceId, date);
 
       expect(result).toEqual(mockDailyLog);
       expect(mockPrismaService.dailyLog.findUnique).toHaveBeenCalledWith({
         where: {
           workspaceId_date: {
             workspaceId: mockWorkspaceId,
-            date: pastDate,
+            date: date,
           },
         },
       });
     });
 
-    it("should return empty content if log not found in database", async () => {
-      const pastDate = new Date("2025-01-10");
-      pastDate.setHours(0, 0, 0, 0);
+    it("should return null if log not found in database", async () => {
+      const date = new Date("2025-01-10");
+      date.setHours(0, 0, 0, 0);
 
       mockPrismaService.dailyLog.findUnique.mockResolvedValue(null);
 
-      const result = await service.getLog(mockWorkspaceId, pastDate);
+      const result = await service.getLog(mockWorkspaceId, date);
 
-      expect(result).toEqual({
-        workspaceId: mockWorkspaceId,
-        date: pastDate,
-        content: "",
+      expect(result).toBeNull();
+      expect(mockPrismaService.dailyLog.findUnique).toHaveBeenCalledWith({
+        where: {
+          workspaceId_date: {
+            workspaceId: mockWorkspaceId,
+            date: date,
+          },
+        },
       });
+    });
+
+    it("should query database for today's log", async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      mockPrismaService.dailyLog.findUnique.mockResolvedValue(mockDailyLog);
+
+      const result = await service.getLog(mockWorkspaceId, today);
+
+      expect(result).toEqual(mockDailyLog);
+      expect(mockPrismaService.dailyLog.findUnique).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -150,14 +151,15 @@ describe("LogService", () => {
   describe("extractYesterdayTasks", () => {
     const mockUsername = "testuser";
 
-    it("should extract tasks for user from yesterday log", async () => {
+    it("should extract unchecked tasks for user from yesterday log", async () => {
       const yesterdayContent = `
-## @testuser
-- [x] Completed task 1
-- [ ] Incomplete task
+### @testuser
+- [x] Completed task (checked)
+- [ ] Incomplete task 1
+- [ ] Incomplete task 2
 
-## @otheruser
-- [x] Other user task
+### @otheruser
+- [ ] Other user task
       `.trim();
 
       mockPrismaService.dailyLog.findUnique.mockResolvedValue({
@@ -170,13 +172,13 @@ describe("LogService", () => {
         mockUsername,
       );
 
-      expect(result).toEqual(["Completed task 1"]);
+      expect(result).toEqual(["Incomplete task 1", "Incomplete task 2"]);
     });
 
-    it("should return empty array if no tasks found", async () => {
+    it("should return empty array if only checked tasks found", async () => {
       mockPrismaService.dailyLog.findUnique.mockResolvedValue({
         ...mockDailyLog,
-        content: "## @testuser\n- [ ] Incomplete task",
+        content: "### @testuser\n- [x] Completed task\n- [x] Another completed",
       });
 
       const result = await service.extractYesterdayTasks(
