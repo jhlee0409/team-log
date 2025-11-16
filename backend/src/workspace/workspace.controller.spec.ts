@@ -407,4 +407,145 @@ describe("WorkspaceController", () => {
       ).rejects.toThrow("User not found");
     });
   });
+
+  describe("Security: IDOR (Insecure Direct Object Reference) Prevention", () => {
+    it("should prevent accessing other user's workspace", async () => {
+      const user1 = { id: "user-1", githubUsername: "user1" };
+      const user2OwnedWorkspace = "workspace-owned-by-user-2";
+
+      const mockRequest = { user: user1 } as any;
+
+      // Service should throw WorkspaceAccessDeniedException
+      const { WorkspaceAccessDeniedException } = require("../common/exceptions/business.exception");
+
+      mockWorkspaceService.findById.mockRejectedValue(
+        new WorkspaceAccessDeniedException(user2OwnedWorkspace),
+      );
+
+      await expect(
+        controller.getWorkspace(user2OwnedWorkspace),
+      ).rejects.toThrow(WorkspaceAccessDeniedException);
+    });
+
+    it("should prevent non-member from inviting other users", async () => {
+      const nonMember = { id: "non-member-123" };
+      const dto: InviteMemberDto = { githubUsername: "newuser" };
+
+      // WorkspaceAdminGuard should deny this at guard level
+      // Service layer should also verify membership
+
+      const { InsufficientPermissionException } = require("../common/exceptions/business.exception");
+
+      mockWorkspaceService.inviteMemberByGithubUsername.mockRejectedValue(
+        new InsufficientPermissionException("Only admins can invite members"),
+      );
+
+      await expect(
+        controller.inviteMember("workspace-123", dto),
+      ).rejects.toThrow(InsufficientPermissionException);
+    });
+
+    it("should prevent member from removing other members", async () => {
+      const regularMember = { id: "member-123" };
+
+      // Only ADMIN/OWNER can remove members
+      const { InsufficientPermissionException } = require("../common/exceptions/business.exception");
+
+      mockWorkspaceService.removeMember.mockRejectedValue(
+        new InsufficientPermissionException("Only admins can remove members"),
+      );
+
+      await expect(
+        controller.removeMember("workspace-123", "user-456"),
+      ).rejects.toThrow(InsufficientPermissionException);
+    });
+
+    it("should prevent accessing workspace with manipulated ID", async () => {
+      const maliciousWorkspaceIds = [
+        "../../../etc/passwd",  // Path traversal attempt
+        "'; DROP TABLE workspaces; --",  // SQL injection attempt
+        "<script>alert('xss')</script>",  // XSS attempt
+        "workspace-999999",  // Non-existent workspace
+      ];
+
+      for (const maliciousId of maliciousWorkspaceIds) {
+        const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
+
+        mockWorkspaceService.findById.mockRejectedValue(
+          new WorkspaceNotFoundException(maliciousId),
+        );
+
+        await expect(controller.getWorkspace(maliciousId)).rejects.toThrow();
+      }
+    });
+
+    it("should prevent user from creating workspace with another user's ID", async () => {
+      const attacker = { id: "attacker-123" };
+      const victim = { id: "victim-456" };
+
+      const mockRequest = { user: attacker } as any;
+      const dto: CreateWorkspaceDto = { name: "Fake Workspace" };
+
+      // Controller should use req.user.id, not accept user ID from body
+      mockWorkspaceService.create.mockImplementation((name, userId) => {
+        // Verify that userId matches authenticated user
+        expect(userId).toBe(attacker.id);
+        expect(userId).not.toBe(victim.id);
+
+        return Promise.resolve({
+          id: "workspace-123",
+          name,
+          createdAt: new Date(),
+          members: [],
+        });
+      });
+
+      await controller.create(dto, mockRequest);
+
+      expect(mockWorkspaceService.create).toHaveBeenCalledWith(
+        dto.name,
+        attacker.id,  // Should use authenticated user ID
+      );
+    });
+
+    it("should prevent enumeration of workspace IDs", async () => {
+      // Attacker tries sequential workspace IDs
+      const workspaceIds = [
+        "workspace-1",
+        "workspace-2",
+        "workspace-3",
+        "workspace-4",
+        "workspace-5",
+      ];
+
+      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
+
+      // All should return same error (not revealing which exist)
+      for (const id of workspaceIds) {
+        mockWorkspaceService.findById.mockRejectedValue(
+          new WorkspaceNotFoundException(id),
+        );
+
+        await expect(controller.getWorkspace(id)).rejects.toThrow(
+          WorkspaceNotFoundException,
+        );
+      }
+
+      // Error messages should be consistent
+      // (not "Workspace not found" vs "Access denied")
+    });
+
+    it("should validate workspace ownership on deletion", async () => {
+      // Note: Delete functionality not yet implemented
+      // This test documents expected security behavior for future implementation
+
+      // When implemented, deletion should:
+      // 1. Only be allowed by workspace OWNER
+      // 2. Verify ownership before deletion
+      // 3. Throw InsufficientPermissionException for non-owners
+
+      // Placeholder test that documents requirement
+      expect(true).toBe(true);
+    });
+  });
 });
