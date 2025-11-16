@@ -365,4 +365,280 @@ describe("LogController", () => {
       );
     });
   });
+
+  describe("Security: XSS (Cross-Site Scripting) Prevention", () => {
+    it("should safely return log content with script tags", async () => {
+      const dto: GetLogDto = {
+        date: "2025-01-15",
+      };
+
+      const maliciousLog = {
+        ...mockLog,
+        content: "<script>alert('xss')</script>Normal content",
+      };
+
+      mockLogService.getLog.mockResolvedValue(maliciousLog);
+
+      const result = await controller.getLog("workspace-123", dto);
+
+      // Controller returns raw content - sanitization should happen at service/client level
+      // Test verifies controller doesn't execute or transform malicious content
+      expect(result).toBeDefined();
+      expect(result.content).toBe("<script>alert('xss')</script>Normal content");
+      expect(typeof result.content).toBe("string");
+    });
+
+    it("should safely return log content with img onerror injection", async () => {
+      const dto: GetLogDto = {
+        date: "2025-01-15",
+      };
+
+      const maliciousLog = {
+        ...mockLog,
+        content: '<img src=x onerror="alert(\'xss\')">',
+      };
+
+      mockLogService.getLog.mockResolvedValue(maliciousLog);
+
+      const result = await controller.getLog("workspace-123", dto);
+
+      expect(result.content).toBe('<img src=x onerror="alert(\'xss\')">');
+    });
+
+    it("should safely return log content with iframe injection", async () => {
+      const dto: GetLogDto = {
+        date: "2025-01-15",
+      };
+
+      const maliciousLog = {
+        ...mockLog,
+        content: '<iframe src="javascript:alert(\'xss\')"></iframe>',
+      };
+
+      mockLogService.getLog.mockResolvedValue(maliciousLog);
+
+      const result = await controller.getLog("workspace-123", dto);
+
+      expect(result.content).toBe(
+        '<iframe src="javascript:alert(\'xss\')"></iframe>',
+      );
+    });
+
+    it("should safely return log content with event handler injection", async () => {
+      const dto: GetLogDto = {
+        date: "2025-01-15",
+      };
+
+      const maliciousLog = {
+        ...mockLog,
+        content:
+          '<div onload="alert(\'xss\')" onclick="alert(\'click\')">Content</div>',
+      };
+
+      mockLogService.getLog.mockResolvedValue(maliciousLog);
+
+      const result = await controller.getLog("workspace-123", dto);
+
+      expect(result.content).toContain("onload");
+      expect(result.content).toContain("onclick");
+    });
+
+    it("should safely return log content with javascript: protocol", async () => {
+      const dto: GetLogDto = {
+        date: "2025-01-15",
+      };
+
+      const maliciousLog = {
+        ...mockLog,
+        content: '<a href="javascript:alert(\'xss\')">Click me</a>',
+      };
+
+      mockLogService.getLog.mockResolvedValue(maliciousLog);
+
+      const result = await controller.getLog("workspace-123", dto);
+
+      expect(result.content).toBe(
+        '<a href="javascript:alert(\'xss\')">Click me</a>',
+      );
+    });
+
+    it("should safely handle XSS in yesterday tasks extraction", async () => {
+      const mockRequest = {
+        user: mockUser,
+      } as any;
+
+      // Service should return sanitized task text without executing scripts
+      const taskWithScript = [
+        "<script>alert('xss')</script>Implement feature",
+        "Fix bug <img src=x onerror=alert('xss')>",
+      ];
+
+      mockLogService.extractYesterdayTasks.mockResolvedValue(taskWithScript);
+
+      const result = await controller.getYesterdayTasks(
+        "workspace-123",
+        mockRequest,
+      );
+
+      // Verify tasks are returned as strings without execution
+      expect(result.tasks).toHaveLength(2);
+      expect(result.tasks[0]).toBe(
+        "<script>alert('xss')</script>Implement feature",
+      );
+      expect(result.tasks[1]).toBe(
+        "Fix bug <img src=x onerror=alert('xss')>",
+      );
+    });
+
+    it("should safely return multiple logs with XSS content in range query", async () => {
+      const dto: GetLogsRangeDto = {
+        startDate: "2025-01-01",
+        endDate: "2025-01-31",
+      };
+
+      const maliciousLogs = [
+        {
+          ...mockLog,
+          content: "<script>alert('xss1')</script>Log 1",
+        },
+        {
+          ...mockLog,
+          id: "log-456",
+          content: "<img src=x onerror=alert('xss2')>Log 2",
+        },
+        {
+          ...mockLog,
+          id: "log-789",
+          content: "Normal log content",
+        },
+      ];
+
+      mockLogService.getLogs.mockResolvedValue(maliciousLogs);
+
+      const result = await controller.getLogs("workspace-123", dto);
+
+      // Verify all logs are returned without executing XSS
+      expect(result).toHaveLength(3);
+      expect(result[0].content).toBe("<script>alert('xss1')</script>Log 1");
+      expect(result[1].content).toBe("<img src=x onerror=alert('xss2')>Log 2");
+      expect(result[2].content).toBe("Normal log content");
+    });
+
+    it("should handle log content with encoded XSS attempts", async () => {
+      const dto: GetLogDto = {
+        date: "2025-01-15",
+      };
+
+      const maliciousLog = {
+        ...mockLog,
+        content:
+          "&lt;script&gt;alert('xss')&lt;/script&gt;",
+      };
+
+      mockLogService.getLog.mockResolvedValue(maliciousLog);
+
+      const result = await controller.getLog("workspace-123", dto);
+
+      // HTML entities should remain as-is (not double-encoded)
+      expect(result.content).toBe(
+        "&lt;script&gt;alert('xss')&lt;/script&gt;",
+      );
+    });
+
+    it("should handle log content with SVG-based XSS", async () => {
+      const dto: GetLogDto = {
+        date: "2025-01-15",
+      };
+
+      const maliciousLog = {
+        ...mockLog,
+        content:
+          '<svg onload="alert(\'xss\')"><circle r="10"/></svg>',
+      };
+
+      mockLogService.getLog.mockResolvedValue(maliciousLog);
+
+      const result = await controller.getLog("workspace-123", dto);
+
+      expect(result.content).toContain("svg");
+      expect(result.content).toContain("onload");
+    });
+
+    it("should handle log content with data: URI XSS", async () => {
+      const dto: GetLogDto = {
+        date: "2025-01-15",
+      };
+
+      const maliciousLog = {
+        ...mockLog,
+        content:
+          '<a href="data:text/html,<script>alert(\'xss\')</script>">Click</a>',
+      };
+
+      mockLogService.getLog.mockResolvedValue(maliciousLog);
+
+      const result = await controller.getLog("workspace-123", dto);
+
+      expect(result.content).toContain("data:text/html");
+    });
+
+    it("should verify controller returns data without transformation", async () => {
+      const dto: GetLogDto = {
+        date: "2025-01-15",
+      };
+
+      // Various XSS vectors in single log
+      const complexMaliciousLog = {
+        ...mockLog,
+        content: `
+# Daily Log
+<script>alert('xss')</script>
+<img src=x onerror=alert('xss')>
+<iframe src="javascript:alert('xss')"></iframe>
+[Click me](javascript:alert('xss'))
+<svg onload="alert('xss')"></svg>
+Normal markdown content
+- [ ] Task with <script>alert('task')</script>
+`,
+      };
+
+      mockLogService.getLog.mockResolvedValue(complexMaliciousLog);
+
+      const result = await controller.getLog("workspace-123", dto);
+
+      // Controller should pass through content as-is
+      // Sanitization is responsibility of:
+      // 1. Client-side: When rendering markdown/HTML
+      // 2. Service-layer: When storing (optional validation)
+      expect(result.content).toBe(complexMaliciousLog.content);
+      expect(result.content).toContain("<script>");
+      expect(result.content).toContain("<img");
+      expect(result.content).toContain("<iframe");
+      expect(result.content).toContain("javascript:");
+      expect(result.content).toContain("<svg");
+    });
+
+    it("should handle XSS in markdown links and images", async () => {
+      const dto: GetLogDto = {
+        date: "2025-01-15",
+      };
+
+      const maliciousLog = {
+        ...mockLog,
+        content: `
+![XSS](javascript:alert('xss'))
+[Click](javascript:alert('xss'))
+![](x" onerror="alert('xss'))
+`,
+      };
+
+      mockLogService.getLog.mockResolvedValue(maliciousLog);
+
+      const result = await controller.getLog("workspace-123", dto);
+
+      // Verify controller returns raw markdown without executing
+      expect(result.content).toContain("javascript:alert");
+      expect(result.content).toContain('onerror="alert');
+    });
+  });
 });

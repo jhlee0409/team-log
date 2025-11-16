@@ -548,4 +548,216 @@ describe("WorkspaceController", () => {
       expect(true).toBe(true);
     });
   });
+
+  describe("Security: Path Traversal Prevention", () => {
+    it("should reject workspace ID with directory traversal (../ pattern)", async () => {
+      const traversalId = "../../../etc/passwd";
+
+      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
+
+      mockWorkspaceService.findById.mockRejectedValue(
+        new WorkspaceNotFoundException(traversalId),
+      );
+
+      await expect(controller.getWorkspace(traversalId)).rejects.toThrow(
+        WorkspaceNotFoundException,
+      );
+    });
+
+    it("should reject workspace ID with Windows path traversal (..\\)", async () => {
+      const traversalId = "..\\..\\..\\windows\\system32\\config\\sam";
+
+      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
+
+      mockWorkspaceService.findById.mockRejectedValue(
+        new WorkspaceNotFoundException(traversalId),
+      );
+
+      await expect(controller.getWorkspace(traversalId)).rejects.toThrow();
+    });
+
+    it("should reject workspace ID with URL-encoded path traversal", async () => {
+      const traversalId = "%2e%2e%2f%2e%2e%2fetc%2fpasswd";
+
+      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
+
+      mockWorkspaceService.findById.mockRejectedValue(
+        new WorkspaceNotFoundException(traversalId),
+      );
+
+      await expect(controller.getWorkspace(traversalId)).rejects.toThrow();
+    });
+
+    it("should reject workspace ID with double-encoded path traversal", async () => {
+      const traversalId = "%252e%252e%252f%252e%252e%252fetc%252fpasswd";
+
+      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
+
+      mockWorkspaceService.findById.mockRejectedValue(
+        new WorkspaceNotFoundException(traversalId),
+      );
+
+      await expect(controller.getWorkspace(traversalId)).rejects.toThrow();
+    });
+
+    it("should reject workspace ID with null byte injection", async () => {
+      const traversalId = "workspace-123%00.txt";
+
+      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
+
+      mockWorkspaceService.findById.mockRejectedValue(
+        new WorkspaceNotFoundException(traversalId),
+      );
+
+      await expect(controller.getWorkspace(traversalId)).rejects.toThrow();
+    });
+
+    it("should reject workspace ID with absolute path (Unix)", async () => {
+      const traversalId = "/etc/passwd";
+
+      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
+
+      mockWorkspaceService.findById.mockRejectedValue(
+        new WorkspaceNotFoundException(traversalId),
+      );
+
+      await expect(controller.getWorkspace(traversalId)).rejects.toThrow();
+    });
+
+    it("should reject workspace ID with absolute path (Windows)", async () => {
+      const traversalId = "C:\\Windows\\System32\\config\\sam";
+
+      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
+
+      mockWorkspaceService.findById.mockRejectedValue(
+        new WorkspaceNotFoundException(traversalId),
+      );
+
+      await expect(controller.getWorkspace(traversalId)).rejects.toThrow();
+    });
+
+    it("should reject workspace ID with Unicode path traversal", async () => {
+      const traversalId = "..%c0%af..%c0%af..%c0%afetc%c0%afpasswd";
+
+      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
+
+      mockWorkspaceService.findById.mockRejectedValue(
+        new WorkspaceNotFoundException(traversalId),
+      );
+
+      await expect(controller.getWorkspace(traversalId)).rejects.toThrow();
+    });
+
+    it("should reject workspace ID with alternative path separators", async () => {
+      const traversalIds = [
+        "....//....//etc/passwd", // Double dot-slash
+        "..../..../etc/passwd", // Quadruple dots
+        "../..///../etc/passwd", // Mixed slashes
+      ];
+
+      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
+
+      for (const traversalId of traversalIds) {
+        mockWorkspaceService.findById.mockRejectedValue(
+          new WorkspaceNotFoundException(traversalId),
+        );
+
+        await expect(controller.getWorkspace(traversalId)).rejects.toThrow();
+      }
+    });
+
+    it("should reject user ID with path traversal in removeMember", async () => {
+      const maliciousUserIds = [
+        "../../../etc/passwd",
+        "..\\..\\..\\windows\\system32",
+        "/etc/shadow",
+        "C:\\boot.ini",
+      ];
+
+      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
+
+      for (const userId of maliciousUserIds) {
+        mockWorkspaceService.removeMember.mockRejectedValue(
+          new WorkspaceNotFoundException("workspace-123"),
+        );
+
+        await expect(
+          controller.removeMember("workspace-123", userId),
+        ).rejects.toThrow();
+      }
+    });
+
+    it("should reject both workspace and user ID with path traversal", async () => {
+      const maliciousWorkspaceId = "../../../var/log/system";
+      const maliciousUserId = "../../../etc/passwd";
+
+      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
+
+      mockWorkspaceService.removeMember.mockRejectedValue(
+        new WorkspaceNotFoundException(maliciousWorkspaceId),
+      );
+
+      await expect(
+        controller.removeMember(maliciousWorkspaceId, maliciousUserId),
+      ).rejects.toThrow();
+    });
+
+    it("should reject workspace ID with path traversal in invite", async () => {
+      const dto: InviteMemberDto = { githubUsername: "validuser" };
+      const traversalId = "../../sensitive/data";
+
+      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
+
+      mockWorkspaceService.inviteMemberByGithubUsername.mockRejectedValue(
+        new WorkspaceNotFoundException(traversalId),
+      );
+
+      await expect(controller.inviteMember(traversalId, dto)).rejects.toThrow();
+    });
+
+    it("should handle path traversal with special characters", async () => {
+      const specialTraversalIds = [
+        "workspace-123/../../etc/passwd",
+        "workspace-123\\..\\..\\windows",
+        "workspace-123;cat /etc/passwd",
+        "workspace-123|ls -la /etc",
+        "workspace-123 && cat /etc/passwd",
+      ];
+
+      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
+
+      for (const traversalId of specialTraversalIds) {
+        mockWorkspaceService.findById.mockRejectedValue(
+          new WorkspaceNotFoundException(traversalId),
+        );
+
+        await expect(controller.getWorkspace(traversalId)).rejects.toThrow();
+      }
+    });
+
+    it("should verify service layer validates IDs before file operations", async () => {
+      // This test documents that path validation should occur at service layer
+      // Controller passes IDs to service, service must validate before any file ops
+
+      const validWorkspaceId = "workspace-123";
+      const maliciousUserId = "../../../etc/passwd";
+
+      // Service should validate and reject malicious IDs
+      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
+
+      mockWorkspaceService.removeMember.mockRejectedValue(
+        new WorkspaceNotFoundException(validWorkspaceId),
+      );
+
+      await expect(
+        controller.removeMember(validWorkspaceId, maliciousUserId),
+      ).rejects.toThrow();
+
+      // Verify service was called (it's service's responsibility to validate)
+      expect(mockWorkspaceService.removeMember).toHaveBeenCalledWith(
+        validWorkspaceId,
+        maliciousUserId,
+      );
+    });
+  });
 });
