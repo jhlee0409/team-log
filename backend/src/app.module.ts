@@ -9,6 +9,7 @@ import { UserModule } from "./user/user.module";
 import { WorkspaceModule } from "./workspace/workspace.module";
 import { LogModule } from "./log/log.module";
 import { YjsModule } from "./yjs/yjs.module";
+import { HealthModule } from "./health/health.module";
 import { HttpLoggerMiddleware } from "./common/middleware/http-logger.middleware";
 import { validate } from "./config/env.validation";
 
@@ -31,6 +32,7 @@ import { validate } from "./config/env.validation";
     WorkspaceModule,
     LogModule,
     YjsModule,
+    HealthModule,
   ],
   providers: [
     {

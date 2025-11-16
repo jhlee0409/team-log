@@ -488,4 +488,28 @@ describe("YjsService", () => {
       }
     });
   });
+
+  describe("isWebSocketServerRunning", () => {
+    it("should return true when WebSocket server is initialized", () => {
+      // Arrange - onModuleInit initializes the WebSocket server
+      service.onModuleInit();
+
+      // Act
+      const result = service.isWebSocketServerRunning();
+
+      // Assert
+      expect(result).toBe(true);
+    });
+
+    it("should return false before WebSocket server is initialized", () => {
+      // Arrange - service created but onModuleInit not called
+      const testService = new YjsService(logService, prismaService);
+
+      // Act
+      const result = testService.isWebSocketServerRunning();
+
+      // Assert
+      expect(result).toBe(false);
+    });
+  });
 });

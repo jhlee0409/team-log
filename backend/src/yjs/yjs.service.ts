@@ -171,4 +171,11 @@ export class YjsService implements OnModuleInit, OnModuleDestroy {
 
     return doc;
   }
+
+  /**
+   * Check if WebSocket server is running (for health checks)
+   */
+  isWebSocketServerRunning(): boolean {
+    return this.wss !== undefined && this.wss !== null;
+  }
 }
