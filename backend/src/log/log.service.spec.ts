@@ -55,6 +55,117 @@ describe("LogService", () => {
     expect(service).toBeDefined();
   });
 
+  describe("saveLog", () => {
+    it("should create new log when log does not exist", async () => {
+      const date = new Date("2025-01-10");
+      date.setHours(0, 0, 0, 0);
+      const content = "New daily log content";
+
+      mockPrismaService.dailyLog.upsert.mockResolvedValue({
+        ...mockDailyLog,
+        content,
+        date,
+      });
+
+      const result = await service.saveLog(mockWorkspaceId, date, content);
+
+      expect(result.content).toBe(content);
+      expect(mockPrismaService.dailyLog.upsert).toHaveBeenCalledWith({
+        where: {
+          workspaceId_date: {
+            workspaceId: mockWorkspaceId,
+            date: date,
+          },
+        },
+        update: {
+          content,
+        },
+        create: {
+          workspaceId: mockWorkspaceId,
+          date,
+          content,
+        },
+      });
+    });
+
+    it("should update existing log when log exists", async () => {
+      const date = new Date("2025-01-10");
+      date.setHours(0, 0, 0, 0);
+      const updatedContent = "Updated log content";
+
+      mockPrismaService.dailyLog.upsert.mockResolvedValue({
+        ...mockDailyLog,
+        content: updatedContent,
+        date,
+      });
+
+      const result = await service.saveLog(mockWorkspaceId, date, updatedContent);
+
+      expect(result.content).toBe(updatedContent);
+      expect(mockPrismaService.dailyLog.upsert).toHaveBeenCalledWith({
+        where: {
+          workspaceId_date: {
+            workspaceId: mockWorkspaceId,
+            date: date,
+          },
+        },
+        update: {
+          content: updatedContent,
+        },
+        create: {
+          workspaceId: mockWorkspaceId,
+          date,
+          content: updatedContent,
+        },
+      });
+    });
+
+    it("should save log with empty content", async () => {
+      const date = new Date("2025-01-10");
+      date.setHours(0, 0, 0, 0);
+      const emptyContent = "";
+
+      mockPrismaService.dailyLog.upsert.mockResolvedValue({
+        ...mockDailyLog,
+        content: emptyContent,
+        date,
+      });
+
+      const result = await service.saveLog(mockWorkspaceId, date, emptyContent);
+
+      expect(result.content).toBe(emptyContent);
+    });
+
+    it("should handle saving for different workspaces", async () => {
+      const workspace2 = "workspace-2";
+      const date = new Date("2025-01-10");
+      const content = "Workspace 2 content";
+
+      mockPrismaService.dailyLog.upsert.mockResolvedValue({
+        id: "log-2",
+        workspaceId: workspace2,
+        date,
+        content,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const result = await service.saveLog(workspace2, date, content);
+
+      expect(result.workspaceId).toBe(workspace2);
+      expect(mockPrismaService.dailyLog.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            workspaceId_date: {
+              workspaceId: workspace2,
+              date,
+            },
+          },
+        }),
+      );
+    });
+  });
+
   describe("getLog", () => {
     it("should return log from database when found", async () => {
       const date = new Date("2025-01-10");
