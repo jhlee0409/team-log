@@ -1,5 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { YjsService } from './yjs.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { YjsService } from "./yjs.service";
 
 /**
  * Yjs Gateway - WebSocket gateway for real-time collaboration

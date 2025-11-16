@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
 export class LogService {
@@ -49,7 +49,7 @@ export class LogService {
           : {}),
       },
       orderBy: {
-        date: 'desc',
+        date: "desc",
       },
     });
   }
@@ -66,13 +66,13 @@ export class LogService {
     }
 
     // Parse the content to find unchecked tasks for the user
-    const lines = log.content.split('\n');
+    const lines = log.content.split("\n");
     const tasks: string[] = [];
     let inUserSection = false;
 
     for (const line of lines) {
       // Check if this is a user section header (e.g., "### @username")
-      if (line.trim().startsWith('###')) {
+      if (line.trim().startsWith("###")) {
         const match = line.match(/@(\w+)/);
         if (match && match[1] === githubUsername) {
           inUserSection = true;
@@ -84,7 +84,7 @@ export class LogService {
       // If we're in the user's section and find an unchecked task
       if (inUserSection && line.trim().match(/^-\s*\[\s*\]/)) {
         // Extract the task text (remove the checkbox)
-        const taskText = line.replace(/^-\s*\[\s*\]/, '').trim();
+        const taskText = line.replace(/^-\s*\[\s*\]/, "").trim();
         if (taskText) {
           tasks.push(taskText);
         }

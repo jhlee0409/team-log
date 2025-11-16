@@ -1,24 +1,30 @@
-import { Injectable } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
-import { Strategy } from 'passport-github2';
-import { ConfigService } from '@nestjs/config';
-import { AuthService } from '../auth.service';
+import { Injectable } from "@nestjs/common";
+import { PassportStrategy } from "@nestjs/passport";
+import { Strategy } from "passport-github2";
+import { ConfigService } from "@nestjs/config";
+import { AuthService } from "../auth.service";
+import { GithubProfile } from "../interfaces/github-profile.interface";
+import { ValidatedUser } from "../interfaces/jwt-payload.interface";
 
 @Injectable()
-export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
+export class GithubStrategy extends PassportStrategy(Strategy, "github") {
   constructor(
     private configService: ConfigService,
     private authService: AuthService,
   ) {
     super({
-      clientID: configService.get('GITHUB_CLIENT_ID'),
-      clientSecret: configService.get('GITHUB_CLIENT_SECRET'),
-      callbackURL: configService.get('GITHUB_CALLBACK_URL'),
-      scope: ['user:email'],
+      clientID: configService.get("GITHUB_CLIENT_ID"),
+      clientSecret: configService.get("GITHUB_CLIENT_SECRET"),
+      callbackURL: configService.get("GITHUB_CALLBACK_URL"),
+      scope: ["user:email"],
     });
   }
 
-  async validate(accessToken: string, refreshToken: string, profile: any) {
+  async validate(
+    accessToken: string,
+    refreshToken: string,
+    profile: GithubProfile,
+  ): Promise<ValidatedUser> {
     return this.authService.validateGithubUser(profile);
   }
 }

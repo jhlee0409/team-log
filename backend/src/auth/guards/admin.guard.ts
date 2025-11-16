@@ -1,5 +1,10 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
 export class WorkspaceAdminGuard implements CanActivate {
@@ -11,7 +16,7 @@ export class WorkspaceAdminGuard implements CanActivate {
     const workspaceId = request.params.workspaceId || request.body.workspaceId;
 
     if (!user || !workspaceId) {
-      throw new ForbiddenException('Unauthorized');
+      throw new ForbiddenException("Unauthorized");
     }
 
     const member = await this.prisma.workspaceMember.findUnique({
@@ -23,8 +28,10 @@ export class WorkspaceAdminGuard implements CanActivate {
       },
     });
 
-    if (!member || (member.role !== 'ADMIN' && member.role !== 'OWNER')) {
-      throw new ForbiddenException('Only workspace admins can perform this action');
+    if (!member || (member.role !== "ADMIN" && member.role !== "OWNER")) {
+      throw new ForbiddenException(
+        "Only workspace admins can perform this action",
+      );
     }
 
     return true;
