@@ -1,5 +1,6 @@
 import { Injectable, NestMiddleware } from "@nestjs/common";
 import { Request, Response, NextFunction } from "express";
+import { v4 as uuidv4 } from "uuid";
 import { LoggerService } from "../logger/logger.service";
 
 /**
@@ -9,7 +10,8 @@ import { LoggerService } from "../logger/logger.service";
  * - Logs all incoming requests with method, path, user agent, IP
  * - Logs response status and duration
  * - Automatically masks sensitive data (password, token, secret, apiKey)
- * - Uses error level for 4xx/5xx responses
+ * - Uses appropriate log levels: warn for 4xx, error for 5xx
+ * - Adds unique request ID for distributed tracing (X-Request-ID header)
  *
  * @example
  * ```typescript
@@ -31,11 +33,18 @@ export class HttpLoggerMiddleware implements NestMiddleware {
     const { method, originalUrl, body, headers } = req;
     const startTime = Date.now();
 
+    // Generate unique request ID for tracing (or use existing from client)
+    const requestId = (headers["x-request-id"] as string) || uuidv4();
+
+    // Add request ID to response headers for client tracking
+    res.setHeader("X-Request-ID", requestId);
+
     // Mask sensitive data in request body
     const sanitizedBody = this.maskSensitiveData(body);
 
-    // Log incoming request
+    // Log incoming request with request ID
     this.logger.log("Incoming request", "HTTP", {
+      requestId,
       method,
       path: originalUrl,
       userAgent: headers["user-agent"],
@@ -49,16 +58,22 @@ export class HttpLoggerMiddleware implements NestMiddleware {
       const { statusCode } = res;
 
       const logData = {
+        requestId,
         method,
         path: originalUrl,
         statusCode,
         duration,
       };
 
-      // Use error level for 4xx and 5xx responses
-      if (statusCode >= 400) {
+      // Differentiate log levels based on response status
+      if (statusCode >= 500) {
+        // Server errors (5xx) - critical issues
         this.logger.error("Request completed", undefined, "HTTP", logData);
+      } else if (statusCode >= 400) {
+        // Client errors (4xx) - user mistakes, invalid input
+        this.logger.warn("Request completed", "HTTP", logData);
       } else {
+        // Success responses (2xx, 3xx)
         this.logger.log("Request completed", "HTTP", logData);
       }
     });

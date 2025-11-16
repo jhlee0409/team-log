@@ -16,6 +16,11 @@ jest.mock("../logger/logger.service", () => {
   };
 });
 
+// Mock uuid
+jest.mock("uuid", () => ({
+  v4: jest.fn(() => "mock-request-id-123"),
+}));
+
 describe("HttpLoggerMiddleware", () => {
   let middleware: HttpLoggerMiddleware;
   let mockRequest: Partial<Request>;
@@ -43,6 +48,7 @@ describe("HttpLoggerMiddleware", () => {
     const responseEventHandlers: { [key: string]: () => void } = {};
     mockResponse = {
       statusCode: 200,
+      setHeader: jest.fn(),
       on: jest.fn((event: string, handler: () => void) => {
         responseEventHandlers[event] = handler;
         return mockResponse as Response;
@@ -128,6 +134,53 @@ describe("HttpLoggerMiddleware", () => {
 
       expect(mockNext).toHaveBeenCalledTimes(1);
     });
+
+    it("should generate and add request ID to response header", () => {
+      middleware.use(
+        mockRequest as Request,
+        mockResponse as Response,
+        mockNext,
+      );
+
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        "X-Request-ID",
+        "mock-request-id-123",
+      );
+    });
+
+    it("should use existing request ID from header if present", () => {
+      mockRequest.headers = {
+        ...mockRequest.headers,
+        "x-request-id": "existing-request-id",
+      };
+
+      middleware.use(
+        mockRequest as Request,
+        mockResponse as Response,
+        mockNext,
+      );
+
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        "X-Request-ID",
+        "existing-request-id",
+      );
+    });
+
+    it("should include request ID in incoming request log", () => {
+      middleware.use(
+        mockRequest as Request,
+        mockResponse as Response,
+        mockNext,
+      );
+
+      expect(mockLoggerService.log).toHaveBeenCalledWith(
+        "Incoming request",
+        "HTTP",
+        expect.objectContaining({
+          requestId: "mock-request-id-123",
+        }),
+      );
+    });
   });
 
   describe("Response logging", () => {
@@ -147,6 +200,7 @@ describe("HttpLoggerMiddleware", () => {
         "Request completed",
         "HTTP",
         expect.objectContaining({
+          requestId: "mock-request-id-123",
           method: "GET",
           path: "/api/workspaces",
           statusCode: 200,
@@ -155,7 +209,7 @@ describe("HttpLoggerMiddleware", () => {
       );
     });
 
-    it("should log error response with 400 status as error", () => {
+    it("should log client error response with 400 status as warn", () => {
       mockResponse.statusCode = 400;
 
       middleware.use(
@@ -166,12 +220,31 @@ describe("HttpLoggerMiddleware", () => {
 
       finishCallback();
 
-      expect(mockLoggerService.error).toHaveBeenCalledWith(
+      expect(mockLoggerService.warn).toHaveBeenCalledWith(
         "Request completed",
-        undefined,
         "HTTP",
         expect.objectContaining({
           statusCode: 400,
+        }),
+      );
+    });
+
+    it("should log client error response with 404 status as warn", () => {
+      mockResponse.statusCode = 404;
+
+      middleware.use(
+        mockRequest as Request,
+        mockResponse as Response,
+        mockNext,
+      );
+
+      finishCallback();
+
+      expect(mockLoggerService.warn).toHaveBeenCalledWith(
+        "Request completed",
+        "HTTP",
+        expect.objectContaining({
+          statusCode: 404,
         }),
       );
     });

@@ -4,6 +4,7 @@ import {
   RequestTimeoutException,
 } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import helmet from "helmet";
 import * as timeout from "connect-timeout";
 import * as express from "express";
 import { AppModule } from "./app.module";
@@ -13,6 +14,13 @@ import { LoggerService } from "./common/logger/logger.service";
 async function bootstrap() {
   const logger = new LoggerService("Bootstrap");
   const app = await NestFactory.create(AppModule);
+
+  // Security headers with Helmet
+  app.use(
+    helmet({
+      contentSecurityPolicy: false, // Disable CSP to allow Swagger UI
+    }),
+  );
 
   // Request body size limits to prevent DoS attacks
   app.use(express.json({ limit: "10mb" }));

@@ -44,6 +44,11 @@ describe("ArchiveScheduler", () => {
     jest.clearAllMocks();
   });
 
+  afterEach(() => {
+    // Ensure all mocks and spies are restored after each test
+    jest.restoreAllMocks();
+  });
+
   it("should be defined", () => {
     expect(scheduler).toBeDefined();
   });
