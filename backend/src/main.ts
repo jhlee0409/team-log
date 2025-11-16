@@ -2,8 +2,10 @@ import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { AppModule } from "./app.module";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
+import { LoggerService } from "./common/logger/logger.service";
 
 async function bootstrap() {
+  const logger = new LoggerService("Bootstrap");
   const app = await NestFactory.create(AppModule);
 
   // Global exception filter for standardized error responses
@@ -48,7 +50,14 @@ async function bootstrap() {
 
   const port = process.env.PORT || 3000;
   await app.listen(port);
-  console.log(`🚀 TeamLog Backend running on http://localhost:${port}`);
+  logger.log(
+    `TeamLog Backend running on http://localhost:${port}`,
+    "Bootstrap",
+    {
+      port,
+      environment: process.env.NODE_ENV || "development",
+    },
+  );
 }
 
 bootstrap();

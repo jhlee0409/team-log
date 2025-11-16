@@ -6,9 +6,12 @@ import {
   GithubUserResponse,
 } from "./interfaces/github-profile.interface";
 import { JwtPayload, ValidatedUser } from "./interfaces/jwt-payload.interface";
+import { LoggerService } from "../common/logger/logger.service";
 
 @Injectable()
 export class AuthService {
+  private logger = new LoggerService(AuthService.name);
+
   constructor(
     private jwtService: JwtService,
     private userService: UserService,
@@ -52,6 +55,8 @@ export class AuthService {
   }
 
   async validateGithubToken(token: string): Promise<ValidatedUser | null> {
+    this.logger.log("Validating GitHub token", AuthService.name);
+
     try {
       // Verify GitHub token by fetching user info
       const response = await fetch("https://api.github.com/user", {
@@ -61,6 +66,13 @@ export class AuthService {
       });
 
       if (!response.ok) {
+        this.logger.warn(
+          "GitHub token validation failed: invalid token",
+          AuthService.name,
+          {
+            statusCode: response.status,
+          },
+        );
         return null;
       }
 
@@ -78,11 +90,36 @@ export class AuthService {
           email: githubUser.email || null,
           avatarUrl: githubUser.avatar_url || null,
         });
+
+        this.logger.log(
+          "New user created from GitHub token",
+          AuthService.name,
+          {
+            userId: user.id,
+            githubUsername: user.githubUsername,
+          },
+        );
+      } else {
+        this.logger.log(
+          "GitHub token validated successfully",
+          AuthService.name,
+          {
+            userId: user.id,
+            githubUsername: user.githubUsername,
+          },
+        );
       }
 
       return user;
     } catch (error) {
-      console.error("GitHub token validation failed:", error);
+      this.logger.error(
+        "GitHub token validation failed",
+        error instanceof Error ? error.stack : undefined,
+        AuthService.name,
+        {
+          errorMessage: error instanceof Error ? error.message : String(error),
+        },
+      );
       return null;
     }
   }
