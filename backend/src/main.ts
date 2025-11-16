@@ -21,8 +21,10 @@ async function bootstrap() {
   app.use(timeout("30s"));
   app.use((req: any, res: any, next: any) => {
     if (req.timedout) {
-      throw new RequestTimeoutException(
-        "Request processing exceeded timeout limit",
+      return next(
+        new RequestTimeoutException(
+          "Request processing exceeded timeout limit",
+        ),
       );
     }
     next();
@@ -45,7 +47,9 @@ async function bootstrap() {
       // Check if origin matches any allowed pattern (supports wildcards for vscode-webview)
       const isAllowed = allowedOrigins.some((allowed) => {
         if (allowed.includes("*")) {
-          const pattern = new RegExp("^" + allowed.replace(/\*/g, ".*") + "$");
+          // Escape special regex characters, then replace escaped \* with .*
+          const escaped = allowed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const pattern = new RegExp("^" + escaped.replace(/\\\*/g, ".*") + "$");
           return pattern.test(origin);
         }
         return allowed === origin;

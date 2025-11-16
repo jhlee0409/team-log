@@ -37,12 +37,25 @@ export class YjsService implements OnModuleInit, OnModuleDestroy {
   async onModuleDestroy() {
     this.logger.log("Shutting down Yjs WebSocket server...");
 
-    // Archive all active documents before shutdown
-    const today = new Date();
+    // Step 1: Close WebSocket server first to prevent new connections
+    await new Promise<void>((resolve) => {
+      if (this.wss) {
+        this.wss.close(() => {
+          this.logger.log("Yjs WebSocket server closed - no new connections");
+          resolve();
+        });
+      } else {
+        resolve();
+      }
+    });
+
+    // Step 2: Take snapshot of all documents before iteration to avoid race conditions
+    const docsSnapshot: Array<[string, Y.Doc]> = Array.from(docs.entries());
     let archivedCount = 0;
 
+    // Step 3: Archive all active documents
     try {
-      for (const [roomName, doc] of docs.entries()) {
+      for (const [roomName, doc] of docsSnapshot) {
         try {
           // Extract workspace ID and date from room name (format: workspaceId-YYYY-MM-DD)
           const parts = roomName.split("-");
@@ -83,18 +96,6 @@ export class YjsService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       this.logger.error("Error during document archival on shutdown", error);
     }
-
-    // Close WebSocket server
-    return new Promise<void>((resolve) => {
-      if (this.wss) {
-        this.wss.close(() => {
-          this.logger.log("Yjs WebSocket server closed");
-          resolve();
-        });
-      } else {
-        resolve();
-      }
-    });
   }
 
   /**
