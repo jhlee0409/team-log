@@ -43,30 +43,52 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
 
   // Enable CORS for VS Code extension
-  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [
+  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",").map(o => o.trim()) || [
     "http://localhost:3000",
     "http://localhost:5173",
   ];
+
+  // Get allowed VS Code extension IDs (optional, for vscode-webview:// origins)
+  const allowedVSCodeExtensions = process.env.ALLOWED_VSCODE_EXTENSIONS?.split(",").map(e => e.trim()).filter(Boolean) || [];
 
   app.enableCors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps, Postman, etc.)
       if (!origin) return callback(null, true);
 
-      // Check if origin matches any allowed pattern (supports wildcards for vscode-webview)
-      const isAllowed = allowedOrigins.some((allowed) => {
-        if (allowed.includes("*")) {
-          // Escape special regex characters, then replace escaped \* with .*
-          const escaped = allowed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          const pattern = new RegExp("^" + escaped.replace(/\\\*/g, ".*") + "$");
-          return pattern.test(origin);
+      // Special handling for vscode-webview:// origins
+      if (origin.startsWith("vscode-webview://")) {
+        const extensionId = origin.replace("vscode-webview://", "");
+
+        // Check if this extension ID is in the allowed list
+        if (allowedVSCodeExtensions.length === 0) {
+          // No VS Code extensions allowed if list is empty
+          logger.warn(
+            `Blocked vscode-webview origin (no extensions configured): ${origin}`,
+            "CORS",
+          );
+          return callback(new Error("VS Code extensions not allowed"));
         }
-        return allowed === origin;
-      });
+
+        if (allowedVSCodeExtensions.includes(extensionId)) {
+          logger.log(`Allowed vscode-webview origin: ${origin}`, "CORS");
+          return callback(null, true);
+        } else {
+          logger.warn(
+            `Blocked vscode-webview origin (extension not in allowed list): ${origin}`,
+            "CORS",
+          );
+          return callback(new Error("Not allowed by CORS"));
+        }
+      }
+
+      // Check if origin matches any allowed origin (exact match only, no wildcards)
+      const isAllowed = allowedOrigins.includes(origin);
 
       if (isAllowed) {
         callback(null, true);
       } else {
+        logger.warn(`Blocked origin: ${origin}`, "CORS");
         callback(new Error("Not allowed by CORS"));
       }
     },

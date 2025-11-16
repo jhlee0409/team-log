@@ -33,4 +33,26 @@ export class ArchiveScheduler {
       this.logger.error("Failed to archive daily logs", error);
     }
   }
+
+  // Run every 6 hours to cleanup orphaned documents from deleted workspaces
+  @Cron("0 */6 * * *", {
+    timeZone: "UTC",
+  })
+  async cleanupOrphanedDocuments() {
+    this.logger.log("Starting orphaned document cleanup...");
+
+    try {
+      const cleaned = await this.yjsService.cleanupOrphanedDocuments();
+
+      if (cleaned > 0) {
+        this.logger.log(
+          `Successfully cleaned up ${cleaned} orphaned documents`,
+        );
+      } else {
+        this.logger.log("No orphaned documents found");
+      }
+    } catch (error) {
+      this.logger.error("Failed to cleanup orphaned documents", error);
+    }
+  }
 }

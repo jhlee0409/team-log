@@ -2,6 +2,8 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { YjsService } from "./yjs.service";
 import { LogService } from "../log/log.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { JwtService } from "@nestjs/jwt";
+import { UserService } from "../user/user.service";
 import * as Y from "yjs";
 import { docs } from "y-websocket/bin/utils";
 
@@ -9,6 +11,16 @@ describe("YjsService", () => {
   let service: YjsService;
   let logService: LogService;
   let prismaService: PrismaService;
+  let jwtService: JwtService;
+  let userService: UserService;
+
+  const mockUser = {
+    id: "user-123",
+    githubId: "github-123",
+    githubUsername: "testuser",
+    email: "test@example.com",
+    avatarUrl: "https://github.com/avatar.png",
+  };
 
   const mockLogService = {
     saveLog: jest.fn(),
@@ -19,6 +31,19 @@ describe("YjsService", () => {
     workspace: {
       findMany: jest.fn(),
     },
+    workspaceMember: {
+      findUnique: jest.fn(),
+    },
+  };
+
+  const mockJwtService = {
+    verify: jest.fn(),
+    sign: jest.fn(),
+  };
+
+  const mockUserService = {
+    findById: jest.fn(),
+    findByGithubId: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -36,12 +61,22 @@ describe("YjsService", () => {
           provide: PrismaService,
           useValue: mockPrismaService,
         },
+        {
+          provide: JwtService,
+          useValue: mockJwtService,
+        },
+        {
+          provide: UserService,
+          useValue: mockUserService,
+        },
       ],
     }).compile();
 
     service = module.get<YjsService>(YjsService);
     logService = module.get<LogService>(LogService);
     prismaService = module.get<PrismaService>(PrismaService);
+    jwtService = module.get<JwtService>(JwtService);
+    userService = module.get<UserService>(UserService);
 
     jest.clearAllMocks();
   });
@@ -457,7 +492,7 @@ describe("YjsService", () => {
       process.env.YJS_PORT = "5678";
 
       // Create a new instance to test onModuleInit
-      const testService = new YjsService(logService, prismaService);
+      const testService = new YjsService(logService, prismaService, jwtService, userService);
 
       // onModuleInit should set up the WebSocket server
       // We can't fully test this in unit tests without mocking WebSocketServer
@@ -478,7 +513,7 @@ describe("YjsService", () => {
       delete process.env.YJS_PORT;
 
       // Create a new instance to test onModuleInit with default port
-      const testService = new YjsService(logService, prismaService);
+      const testService = new YjsService(logService, prismaService, jwtService, userService);
 
       expect(testService).toBeDefined();
 
@@ -503,13 +538,152 @@ describe("YjsService", () => {
 
     it("should return false before WebSocket server is initialized", () => {
       // Arrange - service created but onModuleInit not called
-      const testService = new YjsService(logService, prismaService);
+      const testService = new YjsService(logService, prismaService, jwtService, userService);
 
       // Act
       const result = testService.isWebSocketServerRunning();
 
       // Assert
       expect(result).toBe(false);
+    });
+  });
+
+  describe("cleanupOrphanedDocuments", () => {
+    it("should cleanup documents for deleted workspaces", async () => {
+      // Arrange - create documents for active and deleted workspaces
+      const activeWorkspaceId = "workspace-active";
+      const deletedWorkspaceId = "workspace-deleted";
+      const date = new Date("2025-01-15");
+
+      // Create documents
+      const activeRoom = service.getRoomName(activeWorkspaceId, date);
+      const deletedRoom = service.getRoomName(deletedWorkspaceId, date);
+
+      const activeDoc = service.getDocument(activeRoom);
+      const deletedDoc = service.getDocument(deletedRoom);
+
+      // Add content to both
+      activeDoc.getText("content").insert(0, "Active workspace content");
+      deletedDoc.getText("content").insert(0, "Deleted workspace content");
+
+      // Mock Prisma to return only active workspace
+      mockPrismaService.workspace.findMany.mockResolvedValue([
+        { id: activeWorkspaceId },
+      ]);
+
+      // Act
+      const cleaned = await service.cleanupOrphanedDocuments();
+
+      // Assert
+      expect(cleaned).toBe(1);
+      expect(docs.has(activeRoom)).toBe(true); // Active doc should remain
+      expect(docs.has(deletedRoom)).toBe(false); // Deleted doc should be cleaned
+      expect(logService.saveLog).toHaveBeenCalledWith(
+        deletedWorkspaceId,
+        date,
+        "Deleted workspace content",
+      );
+    });
+
+    it("should cleanup documents with invalid room format", async () => {
+      // Arrange - create document with invalid format
+      const invalidRoom = "invalid-format";
+      const invalidDoc = new Y.Doc();
+      docs.set(invalidRoom, invalidDoc);
+
+      mockPrismaService.workspace.findMany.mockResolvedValue([]);
+
+      // Act
+      const cleaned = await service.cleanupOrphanedDocuments();
+
+      // Assert
+      expect(cleaned).toBe(1);
+      expect(docs.has(invalidRoom)).toBe(false);
+    });
+
+    it("should not cleanup documents for active workspaces", async () => {
+      // Arrange
+      const workspace1 = "workspace-1";
+      const workspace2 = "workspace-2";
+      const date = new Date("2025-01-15");
+
+      const room1 = service.getRoomName(workspace1, date);
+      const room2 = service.getRoomName(workspace2, date);
+
+      service.getDocument(room1).getText("content").insert(0, "Content 1");
+      service.getDocument(room2).getText("content").insert(0, "Content 2");
+
+      // Both workspaces are active
+      mockPrismaService.workspace.findMany.mockResolvedValue([
+        { id: workspace1 },
+        { id: workspace2 },
+      ]);
+
+      // Act
+      const cleaned = await service.cleanupOrphanedDocuments();
+
+      // Assert
+      expect(cleaned).toBe(0);
+      expect(docs.has(room1)).toBe(true);
+      expect(docs.has(room2)).toBe(true);
+    });
+
+    it("should skip archiving documents with no content", async () => {
+      // Arrange - create document with only whitespace
+      const deletedWorkspaceId = "workspace-deleted";
+      const date = new Date("2025-01-15");
+      const deletedRoom = service.getRoomName(deletedWorkspaceId, date);
+
+      service.getDocument(deletedRoom).getText("content").insert(0, "   \n\t  ");
+
+      mockPrismaService.workspace.findMany.mockResolvedValue([]);
+
+      // Act
+      const cleaned = await service.cleanupOrphanedDocuments();
+
+      // Assert
+      expect(cleaned).toBe(1);
+      expect(docs.has(deletedRoom)).toBe(false);
+      expect(logService.saveLog).not.toHaveBeenCalled();
+    });
+
+    it("should continue cleanup even if archival fails", async () => {
+      // Arrange
+      const deletedWorkspaceId = "workspace-deleted";
+      const date = new Date("2025-01-15");
+      const deletedRoom = service.getRoomName(deletedWorkspaceId, date);
+
+      service.getDocument(deletedRoom).getText("content").insert(0, "Content");
+
+      mockPrismaService.workspace.findMany.mockResolvedValue([]);
+      mockLogService.saveLog.mockRejectedValue(new Error("Save failed"));
+
+      // Act
+      const cleaned = await service.cleanupOrphanedDocuments();
+
+      // Assert - document should still be cleaned up even if archive failed
+      expect(cleaned).toBe(1);
+      expect(docs.has(deletedRoom)).toBe(false);
+    });
+
+    it("should handle multiple orphaned documents", async () => {
+      // Arrange - create 3 documents for deleted workspaces
+      const deleted1 = "workspace-deleted-1";
+      const deleted2 = "workspace-deleted-2";
+      const deleted3 = "workspace-deleted-3";
+      const date = new Date("2025-01-15");
+
+      service.getDocument(service.getRoomName(deleted1, date));
+      service.getDocument(service.getRoomName(deleted2, date));
+      service.getDocument(service.getRoomName(deleted3, date));
+
+      mockPrismaService.workspace.findMany.mockResolvedValue([]);
+
+      // Act
+      const cleaned = await service.cleanupOrphanedDocuments();
+
+      // Assert
+      expect(cleaned).toBe(3);
     });
   });
 });
