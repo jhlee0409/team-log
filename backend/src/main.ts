@@ -3,6 +3,7 @@ import {
   ValidationPipe,
   RequestTimeoutException,
 } from "@nestjs/common";
+import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import * as timeout from "connect-timeout";
 import * as express from "express";
 import { AppModule } from "./app.module";
@@ -72,6 +73,38 @@ async function bootstrap() {
     }),
   );
 
+  // Swagger API Documentation
+  const config = new DocumentBuilder()
+    .setTitle("TeamLog API")
+    .setDescription(
+      "TeamLog backend API for collaborative daily log management with Yjs real-time collaboration",
+    )
+    .setVersion("1.0.0")
+    .addTag("auth", "Authentication endpoints (GitHub OAuth, JWT)")
+    .addTag("workspaces", "Workspace management")
+    .addTag("logs", "Daily log operations")
+    .addTag("yjs", "Yjs real-time collaboration WebSocket")
+    .addTag("health", "Health check for monitoring")
+    .addBearerAuth(
+      {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT",
+        description: "Enter JWT token from /auth/login",
+      },
+      "JWT-auth",
+    )
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup("api", app, document, {
+    swaggerOptions: {
+      persistAuthorization: true, // Keep authorization across page refreshes
+      tagsSorter: "alpha",
+      operationsSorter: "alpha",
+    },
+  });
+
   const port = process.env.PORT || 3000;
   await app.listen(port);
   logger.log(
@@ -80,6 +113,7 @@ async function bootstrap() {
     {
       port,
       environment: process.env.NODE_ENV || "development",
+      apiDocs: `http://localhost:${port}/api`,
     },
   );
 }
