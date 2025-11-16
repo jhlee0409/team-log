@@ -37,6 +37,7 @@ describe("WorkspaceService", () => {
       findMany: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      count: jest.fn(),
     },
     workspaceMember: {
       create: jest.fn(),
@@ -143,13 +144,31 @@ describe("WorkspaceService", () => {
   });
 
   describe("findUserWorkspaces", () => {
-    it("should return all workspaces for a user", async () => {
+    it("should return all workspaces for a user with pagination", async () => {
       const mockWorkspaces = [mockWorkspace];
+      mockPrismaService.workspace.count.mockResolvedValue(1);
       mockPrismaService.workspace.findMany.mockResolvedValue(mockWorkspaces);
 
-      const result = await service.findUserWorkspaces(mockUser.id);
+      const result = await service.findUserWorkspaces(mockUser.id, 1, 20);
 
-      expect(result).toEqual(mockWorkspaces);
+      expect(result).toEqual({
+        data: mockWorkspaces,
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: 1,
+          totalPages: 1,
+        },
+      });
+      expect(mockPrismaService.workspace.count).toHaveBeenCalledWith({
+        where: {
+          members: {
+            some: {
+              userId: mockUser.id,
+            },
+          },
+        },
+      });
       expect(mockPrismaService.workspace.findMany).toHaveBeenCalledWith({
         where: {
           members: {
@@ -164,6 +183,11 @@ describe("WorkspaceService", () => {
               user: true,
             },
           },
+        },
+        skip: 0,
+        take: 20,
+        orderBy: {
+          createdAt: 'desc',
         },
       });
     });

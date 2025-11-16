@@ -167,18 +167,25 @@ describe("WorkspaceController", () => {
         user: mockUser,
       } as any;
 
+      const paginatedResponse = {
+        data: mockWorkspaces,
+        pagination: { page: 1, limit: 20, total: 2, totalPages: 1 },
+      };
       mockWorkspaceService.findUserWorkspaces.mockResolvedValue(
-        mockWorkspaces,
+        paginatedResponse,
       );
 
-      const result = await controller.getUserWorkspaces(mockRequest);
+      const mockQuery = { page: 1, limit: 20 };
+      const result = await controller.getUserWorkspaces(mockRequest, mockQuery);
 
       expect(workspaceService.findUserWorkspaces).toHaveBeenCalledWith(
         mockUser.id,
+        1,
+        20,
       );
       expect(workspaceService.findUserWorkspaces).toHaveBeenCalledTimes(1);
-      expect(result).toEqual(mockWorkspaces);
-      expect(result).toHaveLength(2);
+      expect(result).toEqual(paginatedResponse);
+      expect(result.data).toHaveLength(2);
     });
 
     it("should return empty array when user has no workspaces", async () => {
@@ -186,12 +193,17 @@ describe("WorkspaceController", () => {
         user: mockUser,
       } as any;
 
-      mockWorkspaceService.findUserWorkspaces.mockResolvedValue([]);
+      const emptyResponse = {
+        data: [],
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+      };
+      mockWorkspaceService.findUserWorkspaces.mockResolvedValue(emptyResponse);
 
-      const result = await controller.getUserWorkspaces(mockRequest);
+      const mockQuery = { page: 1, limit: 20 };
+      const result = await controller.getUserWorkspaces(mockRequest, mockQuery);
 
-      expect(result).toEqual([]);
-      expect(result).toHaveLength(0);
+      expect(result).toEqual(emptyResponse);
+      expect(result.data).toHaveLength(0);
     });
 
     it("should return workspaces for different user", async () => {
@@ -215,16 +227,23 @@ describe("WorkspaceController", () => {
         },
       ];
 
+      const paginatedResponse = {
+        data: userWorkspaces,
+        pagination: { page: 1, limit: 20, total: 1, totalPages: 1 },
+      };
       mockWorkspaceService.findUserWorkspaces.mockResolvedValue(
-        userWorkspaces,
+        paginatedResponse,
       );
 
-      const result = await controller.getUserWorkspaces(mockRequest);
+      const mockQuery = { page: 1, limit: 20 };
+      const result = await controller.getUserWorkspaces(mockRequest, mockQuery);
 
       expect(workspaceService.findUserWorkspaces).toHaveBeenCalledWith(
         differentUser.id,
+        1,
+        20,
       );
-      expect(result).toHaveLength(1);
+      expect(result.data).toHaveLength(1);
     });
   });
 

@@ -2,7 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { ArchiveScheduler } from "./archive.scheduler";
 import { LogService } from "./log.service";
 import { YjsService } from "../yjs/yjs.service";
-import { Logger } from "@nestjs/common";
+import { LoggerService } from "../common/logger/logger.service";
 
 describe("ArchiveScheduler", () => {
   let scheduler: ArchiveScheduler;
@@ -63,10 +63,10 @@ describe("ArchiveScheduler", () => {
     let loggerErrorSpy: jest.SpyInstance;
 
     beforeEach(() => {
-      // Spy on logger methods
-      loggerSpy = jest.spyOn(Logger.prototype, "log").mockImplementation();
+      // Spy on the scheduler's logger instance directly
+      loggerSpy = jest.spyOn(scheduler["logger"], "log").mockImplementation();
       loggerErrorSpy = jest
-        .spyOn(Logger.prototype, "error")
+        .spyOn(scheduler["logger"], "error")
         .mockImplementation();
     });
 
@@ -84,6 +84,7 @@ describe("ArchiveScheduler", () => {
       expect(yjsService.archiveYesterdayLogs).toHaveBeenCalledTimes(1);
       expect(loggerSpy).toHaveBeenCalledWith(
         expect.stringContaining("Successfully archived 5 workspace logs"),
+        expect.any(Object),
       );
     });
 
@@ -117,6 +118,7 @@ describe("ArchiveScheduler", () => {
 
       expect(loggerSpy).toHaveBeenCalledWith(
         `Successfully archived 10 workspace logs for ${expectedDate}`,
+        expect.any(Object),
       );
     });
 
@@ -128,6 +130,7 @@ describe("ArchiveScheduler", () => {
       expect(loggerSpy).toHaveBeenCalledWith("Starting daily log archiving...");
       expect(loggerSpy).toHaveBeenCalledWith(
         expect.stringContaining("Successfully archived 0 workspace logs"),
+        expect.any(Object),
       );
       expect(loggerErrorSpy).not.toHaveBeenCalled();
     });
@@ -140,8 +143,13 @@ describe("ArchiveScheduler", () => {
 
       expect(loggerSpy).toHaveBeenCalledWith("Starting daily log archiving...");
       expect(loggerErrorSpy).toHaveBeenCalledWith(
-        "Failed to archive daily logs",
-        error,
+        expect.stringContaining("Failed to archive daily logs"),
+        expect.any(String),
+        "ArchiveScheduler",
+        expect.objectContaining({
+          consecutiveFailures: expect.any(Number),
+          lastError: expect.any(String),
+        }),
       );
       expect(loggerSpy).not.toHaveBeenCalledWith(
         expect.stringContaining("Successfully archived"),
@@ -164,6 +172,7 @@ describe("ArchiveScheduler", () => {
 
       expect(loggerSpy).toHaveBeenCalledWith(
         expect.stringContaining("Successfully archived 1000 workspace logs"),
+        expect.any(Object),
       );
     });
 
@@ -174,8 +183,13 @@ describe("ArchiveScheduler", () => {
       await scheduler.archiveDailyLogs();
 
       expect(loggerErrorSpy).toHaveBeenCalledWith(
-        "Failed to archive daily logs",
-        specificError,
+        expect.stringContaining("Failed to archive daily logs"),
+        expect.any(String),
+        "ArchiveScheduler",
+        expect.objectContaining({
+          consecutiveFailures: expect.any(Number),
+          lastError: expect.any(String),
+        }),
       );
     });
 
@@ -243,7 +257,7 @@ describe("ArchiveScheduler", () => {
 
     beforeEach(() => {
       loggerErrorSpy = jest
-        .spyOn(Logger.prototype, "error")
+        .spyOn(scheduler["logger"], "error")
         .mockImplementation();
     });
 
@@ -279,14 +293,21 @@ describe("ArchiveScheduler", () => {
 
       for (const error of errors) {
         jest.clearAllMocks();
+        // Reset failure counter to prevent alert triggering
+        scheduler["consecutiveArchivalFailures"] = 0;
         mockYjsService.archiveYesterdayLogs.mockRejectedValue(error);
 
         await scheduler.archiveDailyLogs();
 
-        expect(loggerErrorSpy).toHaveBeenCalledWith(
-          "Failed to archive daily logs",
-          error,
-        );
+        // Verify error was logged (parameters may vary based on error type)
+        expect(loggerErrorSpy).toHaveBeenCalled();
+        const call = loggerErrorSpy.mock.calls[0];
+        expect(call[0]).toContain("Failed to archive daily logs");
+        expect(call[2]).toBe("ArchiveScheduler");
+        expect(call[3]).toMatchObject({
+          consecutiveFailures: expect.any(Number),
+          lastError: expect.any(String),
+        });
       }
     });
   });
