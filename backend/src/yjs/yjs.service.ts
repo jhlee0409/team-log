@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from "@nestjs/common";
 import * as Y from "yjs";
 import { WebSocketServer } from "ws";
 import { setupWSConnection, setPersistence, docs } from "y-websocket/bin/utils";
@@ -6,7 +11,7 @@ import { LogService } from "../log/log.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
-export class YjsService implements OnModuleInit {
+export class YjsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(YjsService.name);
   private wss: WebSocketServer;
 
@@ -27,6 +32,69 @@ export class YjsService implements OnModuleInit {
     this.logger.log(
       `✅ Yjs WebSocket server running on ws://localhost:${port}`,
     );
+  }
+
+  async onModuleDestroy() {
+    this.logger.log("Shutting down Yjs WebSocket server...");
+
+    // Archive all active documents before shutdown
+    const today = new Date();
+    let archivedCount = 0;
+
+    try {
+      for (const [roomName, doc] of docs.entries()) {
+        try {
+          // Extract workspace ID and date from room name (format: workspaceId-YYYY-MM-DD)
+          const parts = roomName.split("-");
+          if (parts.length >= 4) {
+            // workspaceId might contain hyphens
+            const dateStr = parts.slice(-3).join("-"); // Last 3 parts are YYYY-MM-DD
+            const workspaceId = parts.slice(0, -3).join("-");
+            const date = new Date(dateStr);
+
+            // Get content from Yjs document
+            const yText = doc.getText("content");
+            const content = yText.toString();
+
+            // Save if there's content
+            if (content.trim()) {
+              await this.logService.saveLog(workspaceId, date, content);
+              archivedCount++;
+              this.logger.log(`Archived document on shutdown: ${roomName}`);
+            }
+
+            // Clean up
+            doc.destroy();
+            docs.delete(roomName);
+          }
+        } catch (error) {
+          this.logger.error(
+            `Failed to archive document ${roomName} on shutdown`,
+            error,
+          );
+        }
+      }
+
+      if (archivedCount > 0) {
+        this.logger.log(
+          `Archived ${archivedCount} active documents on shutdown`,
+        );
+      }
+    } catch (error) {
+      this.logger.error("Error during document archival on shutdown", error);
+    }
+
+    // Close WebSocket server
+    return new Promise<void>((resolve) => {
+      if (this.wss) {
+        this.wss.close(() => {
+          this.logger.log("Yjs WebSocket server closed");
+          resolve();
+        });
+      } else {
+        resolve();
+      }
+    });
   }
 
   /**

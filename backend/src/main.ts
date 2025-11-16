@@ -1,6 +1,10 @@
 import { NestFactory } from "@nestjs/core";
-import { ValidationPipe } from "@nestjs/common";
+import {
+  ValidationPipe,
+  RequestTimeoutException,
+} from "@nestjs/common";
 import * as timeout from "connect-timeout";
+import * as express from "express";
 import { AppModule } from "./app.module";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 import { LoggerService } from "./common/logger/logger.service";
@@ -9,10 +13,19 @@ async function bootstrap() {
   const logger = new LoggerService("Bootstrap");
   const app = await NestFactory.create(AppModule);
 
+  // Request body size limits to prevent DoS attacks
+  app.use(express.json({ limit: "10mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
   // Request timeout configuration (30 seconds)
   app.use(timeout("30s"));
   app.use((req: any, res: any, next: any) => {
-    if (!req.timedout) next();
+    if (req.timedout) {
+      throw new RequestTimeoutException(
+        "Request processing exceeded timeout limit",
+      );
+    }
+    next();
   });
 
   // Global exception filter for standardized error responses

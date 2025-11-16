@@ -6,6 +6,7 @@ import {
   validateSync,
   Min,
   Max,
+  MinLength,
 } from "class-validator";
 
 export class EnvironmentVariables {
@@ -13,6 +14,9 @@ export class EnvironmentVariables {
   DATABASE_URL: string;
 
   @IsString()
+  @MinLength(32, {
+    message: "JWT_SECRET must be at least 32 characters for security",
+  })
   JWT_SECRET: string;
 
   @IsOptional()
