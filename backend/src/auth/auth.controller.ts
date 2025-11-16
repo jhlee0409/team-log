@@ -1,10 +1,12 @@
 import { Controller, Post, Body, UseGuards, Get, Req } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
+import { Throttle } from "@nestjs/throttler";
 import { AuthService } from "./auth.service";
 import { ValidateGithubTokenDto } from "./dto/validate-github-token.dto";
 import { RequestWithUser } from "./interfaces/request-with-user.interface";
 
 @Controller("auth")
+@Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 requests per minute for auth endpoints
 export class AuthController {
   constructor(private authService: AuthService) {}
 

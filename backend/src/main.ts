@@ -1,5 +1,6 @@
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
+import * as timeout from "connect-timeout";
 import { AppModule } from "./app.module";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 import { LoggerService } from "./common/logger/logger.service";
@@ -7,6 +8,12 @@ import { LoggerService } from "./common/logger/logger.service";
 async function bootstrap() {
   const logger = new LoggerService("Bootstrap");
   const app = await NestFactory.create(AppModule);
+
+  // Request timeout configuration (30 seconds)
+  app.use(timeout("30s"));
+  app.use((req: any, res: any, next: any) => {
+    if (!req.timedout) next();
+  });
 
   // Global exception filter for standardized error responses
   app.useGlobalFilters(new HttpExceptionFilter());
