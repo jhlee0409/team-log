@@ -1,21 +1,21 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { JwtService } from '@nestjs/jwt';
-import { AuthService } from './auth.service';
-import { UserService } from '../user/user.service';
-import { GithubProfile } from './interfaces/github-profile.interface';
-import { ValidatedUser } from './interfaces/jwt-payload.interface';
+import { Test, TestingModule } from "@nestjs/testing";
+import { JwtService } from "@nestjs/jwt";
+import { AuthService } from "./auth.service";
+import { UserService } from "../user/user.service";
+import { GithubProfile } from "./interfaces/github-profile.interface";
+import { ValidatedUser } from "./interfaces/jwt-payload.interface";
 
-describe('AuthService', () => {
+describe("AuthService", () => {
   let service: AuthService;
   let userService: UserService;
   let jwtService: JwtService;
 
   const mockUser: ValidatedUser = {
-    id: '1',
-    githubId: '12345',
-    githubUsername: 'testuser',
-    email: 'test@example.com',
-    avatarUrl: 'https://avatar.url',
+    id: "1",
+    githubId: "12345",
+    githubUsername: "testuser",
+    email: "test@example.com",
+    avatarUrl: "https://avatar.url",
   };
 
   const mockUserService = {
@@ -52,29 +52,29 @@ describe('AuthService', () => {
     jest.clearAllMocks();
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(service).toBeDefined();
   });
 
-  describe('validateGithubUser', () => {
+  describe("validateGithubUser", () => {
     const mockProfile: GithubProfile = {
-      id: '12345',
-      username: 'testuser',
-      emails: [{ value: 'test@example.com' }],
-      photos: [{ value: 'https://avatar.url' }],
+      id: "12345",
+      username: "testuser",
+      emails: [{ value: "test@example.com" }],
+      photos: [{ value: "https://avatar.url" }],
     };
 
-    it('should return existing user if found', async () => {
+    it("should return existing user if found", async () => {
       mockUserService.findByGithubId.mockResolvedValue(mockUser);
 
       const result = await service.validateGithubUser(mockProfile);
 
       expect(result).toEqual(mockUser);
-      expect(mockUserService.findByGithubId).toHaveBeenCalledWith('12345');
+      expect(mockUserService.findByGithubId).toHaveBeenCalledWith("12345");
       expect(mockUserService.create).not.toHaveBeenCalled();
     });
 
-    it('should create new user if not found', async () => {
+    it("should create new user if not found", async () => {
       mockUserService.findByGithubId.mockResolvedValue(null);
       mockUserService.create.mockResolvedValue(mockUser);
 
@@ -82,17 +82,17 @@ describe('AuthService', () => {
 
       expect(result).toEqual(mockUser);
       expect(mockUserService.create).toHaveBeenCalledWith({
-        githubId: '12345',
-        githubUsername: 'testuser',
-        email: 'test@example.com',
-        avatarUrl: 'https://avatar.url',
+        githubId: "12345",
+        githubUsername: "testuser",
+        email: "test@example.com",
+        avatarUrl: "https://avatar.url",
       });
     });
 
-    it('should handle profile without email or avatar', async () => {
+    it("should handle profile without email or avatar", async () => {
       const profileWithoutOptionals: GithubProfile = {
-        id: '12345',
-        username: 'testuser',
+        id: "12345",
+        username: "testuser",
       };
 
       mockUserService.findByGithubId.mockResolvedValue(null);
@@ -101,17 +101,17 @@ describe('AuthService', () => {
       await service.validateGithubUser(profileWithoutOptionals);
 
       expect(mockUserService.create).toHaveBeenCalledWith({
-        githubId: '12345',
-        githubUsername: 'testuser',
+        githubId: "12345",
+        githubUsername: "testuser",
         email: null,
         avatarUrl: null,
       });
     });
   });
 
-  describe('generateToken', () => {
-    it('should generate JWT token and return user data', async () => {
-      const mockToken = 'mock.jwt.token';
+  describe("generateToken", () => {
+    it("should generate JWT token and return user data", async () => {
+      const mockToken = "mock.jwt.token";
       mockJwtService.sign.mockReturnValue(mockToken);
 
       const result = await service.generateToken(mockUser);
@@ -135,12 +135,12 @@ describe('AuthService', () => {
     });
   });
 
-  describe('validateGithubToken', () => {
+  describe("validateGithubToken", () => {
     const mockGithubResponse = {
       id: 12345,
-      login: 'testuser',
-      email: 'test@example.com',
-      avatar_url: 'https://avatar.url',
+      login: "testuser",
+      email: "test@example.com",
+      avatar_url: "https://avatar.url",
     };
 
     beforeEach(() => {
@@ -151,7 +151,7 @@ describe('AuthService', () => {
       jest.restoreAllMocks();
     });
 
-    it('should validate token and return existing user', async () => {
+    it("should validate token and return existing user", async () => {
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: async () => mockGithubResponse,
@@ -159,20 +159,17 @@ describe('AuthService', () => {
 
       mockUserService.findByGithubId.mockResolvedValue(mockUser);
 
-      const result = await service.validateGithubToken('valid-token');
+      const result = await service.validateGithubToken("valid-token");
 
       expect(result).toEqual(mockUser);
-      expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.github.com/user',
-        {
-          headers: {
-            Authorization: 'Bearer valid-token',
-          },
-        }
-      );
+      expect(global.fetch).toHaveBeenCalledWith("https://api.github.com/user", {
+        headers: {
+          Authorization: "Bearer valid-token",
+        },
+      });
     });
 
-    it('should create new user if not found', async () => {
+    it("should create new user if not found", async () => {
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: async () => mockGithubResponse,
@@ -181,26 +178,26 @@ describe('AuthService', () => {
       mockUserService.findByGithubId.mockResolvedValue(null);
       mockUserService.create.mockResolvedValue(mockUser);
 
-      const result = await service.validateGithubToken('valid-token');
+      const result = await service.validateGithubToken("valid-token");
 
       expect(result).toEqual(mockUser);
       expect(mockUserService.create).toHaveBeenCalled();
     });
 
-    it('should return null for invalid token', async () => {
+    it("should return null for invalid token", async () => {
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: false,
       });
 
-      const result = await service.validateGithubToken('invalid-token');
+      const result = await service.validateGithubToken("invalid-token");
 
       expect(result).toBeNull();
     });
 
-    it('should return null on fetch error', async () => {
-      (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
+    it("should return null on fetch error", async () => {
+      (global.fetch as jest.Mock).mockRejectedValue(new Error("Network error"));
 
-      const result = await service.validateGithubToken('token');
+      const result = await service.validateGithubToken("token");
 
       expect(result).toBeNull();
     });

@@ -1,18 +1,18 @@
-import { Controller, Get, Query, Param, UseGuards, Req } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { LogService } from './log.service';
-import { GetLogDto } from './dto/get-log.dto';
-import { GetLogsRangeDto } from './dto/get-logs-range.dto';
-import { RequestWithUser } from '../auth/interfaces/request-with-user.interface';
+import { Controller, Get, Query, Param, UseGuards, Req } from "@nestjs/common";
+import { AuthGuard } from "@nestjs/passport";
+import { LogService } from "./log.service";
+import { GetLogDto } from "./dto/get-log.dto";
+import { GetLogsRangeDto } from "./dto/get-logs-range.dto";
+import { RequestWithUser } from "../auth/interfaces/request-with-user.interface";
 
-@Controller('logs')
-@UseGuards(AuthGuard('jwt'))
+@Controller("logs")
+@UseGuards(AuthGuard("jwt"))
 export class LogController {
   constructor(private logService: LogService) {}
 
-  @Get(':workspaceId')
+  @Get(":workspaceId")
   async getLog(
-    @Param('workspaceId') workspaceId: string,
+    @Param("workspaceId") workspaceId: string,
     @Query() query: GetLogDto,
   ) {
     const queryDate = query.date ? new Date(query.date) : new Date();
@@ -21,9 +21,9 @@ export class LogController {
     return this.logService.getLog(workspaceId, queryDate);
   }
 
-  @Get(':workspaceId/yesterday-tasks')
+  @Get(":workspaceId/yesterday-tasks")
   async getYesterdayTasks(
-    @Param('workspaceId') workspaceId: string,
+    @Param("workspaceId") workspaceId: string,
     @Req() req: RequestWithUser,
   ) {
     const tasks = await this.logService.extractYesterdayTasks(
@@ -34,9 +34,9 @@ export class LogController {
     return { tasks };
   }
 
-  @Get(':workspaceId/range')
+  @Get(":workspaceId/range")
   async getLogs(
-    @Param('workspaceId') workspaceId: string,
+    @Param("workspaceId") workspaceId: string,
     @Query() query: GetLogsRangeDto,
   ) {
     const start = query.startDate ? new Date(query.startDate) : undefined;

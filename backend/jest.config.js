@@ -17,5 +17,9 @@ module.exports = {
   testEnvironment: 'node',
   moduleNameMapper: {
     '^src/(.*)$': '<rootDir>/$1',
+    '^uuid$': require.resolve('uuid'),
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!uuid)',
+  ],
 };

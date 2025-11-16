@@ -1,8 +1,11 @@
-import { Injectable } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { UserService } from '../user/user.service';
-import { GithubProfile, GithubUserResponse } from './interfaces/github-profile.interface';
-import { JwtPayload, ValidatedUser } from './interfaces/jwt-payload.interface';
+import { Injectable } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { UserService } from "../user/user.service";
+import {
+  GithubProfile,
+  GithubUserResponse,
+} from "./interfaces/github-profile.interface";
+import { JwtPayload, ValidatedUser } from "./interfaces/jwt-payload.interface";
 
 @Injectable()
 export class AuthService {
@@ -51,7 +54,7 @@ export class AuthService {
   async validateGithubToken(token: string): Promise<ValidatedUser | null> {
     try {
       // Verify GitHub token by fetching user info
-      const response = await fetch('https://api.github.com/user', {
+      const response = await fetch("https://api.github.com/user", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -61,10 +64,12 @@ export class AuthService {
         return null;
       }
 
-      const githubUser = await response.json() as GithubUserResponse;
+      const githubUser = (await response.json()) as GithubUserResponse;
 
       // Find or create user
-      let user = await this.userService.findByGithubId(githubUser.id.toString());
+      let user = await this.userService.findByGithubId(
+        githubUser.id.toString(),
+      );
 
       if (!user) {
         user = await this.userService.create({
@@ -77,7 +82,7 @@ export class AuthService {
 
       return user;
     } catch (error) {
-      console.error('GitHub token validation failed:', error);
+      console.error("GitHub token validation failed:", error);
       return null;
     }
   }

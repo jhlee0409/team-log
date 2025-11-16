@@ -1,9 +1,9 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import * as Y from 'yjs';
-import { WebSocketServer } from 'ws';
-import { setupWSConnection, setPersistence, docs } from 'y-websocket/bin/utils';
-import { LogService } from '../log/log.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import * as Y from "yjs";
+import { WebSocketServer } from "ws";
+import { setupWSConnection, setPersistence, docs } from "y-websocket/bin/utils";
+import { LogService } from "../log/log.service";
+import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
 export class YjsService implements OnModuleInit {
@@ -16,15 +16,17 @@ export class YjsService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    const port = parseInt(process.env.YJS_PORT || '1234', 10);
+    const port = parseInt(process.env.YJS_PORT || "1234", 10);
 
     this.wss = new WebSocketServer({ port });
 
-    this.wss.on('connection', (ws, req) => {
+    this.wss.on("connection", (ws, req) => {
       setupWSConnection(ws, req);
     });
 
-    this.logger.log(`✅ Yjs WebSocket server running on ws://localhost:${port}`);
+    this.logger.log(
+      `✅ Yjs WebSocket server running on ws://localhost:${port}`,
+    );
   }
 
   /**
@@ -32,7 +34,7 @@ export class YjsService implements OnModuleInit {
    * Room format: workspaceId-YYYY-MM-DD
    */
   async archiveYesterdayLogs(yesterday: Date): Promise<number> {
-    const dateStr = yesterday.toISOString().split('T')[0]; // YYYY-MM-DD
+    const dateStr = yesterday.toISOString().split("T")[0]; // YYYY-MM-DD
     let archivedCount = 0;
 
     // Get all active workspaces
@@ -49,13 +51,15 @@ export class YjsService implements OnModuleInit {
       if (doc) {
         try {
           // Convert Yjs document to text
-          const yText = doc.getText('content');
+          const yText = doc.getText("content");
           const content = yText.toString();
 
           // Only save if there's content
           if (content.trim()) {
             await this.logService.saveLog(workspace.id, yesterday, content);
-            this.logger.log(`Archived log for workspace ${workspace.id}, date ${dateStr}`);
+            this.logger.log(
+              `Archived log for workspace ${workspace.id}, date ${dateStr}`,
+            );
             archivedCount++;
           }
 
@@ -64,7 +68,10 @@ export class YjsService implements OnModuleInit {
           docs.delete(roomName);
           this.logger.log(`Destroyed Yjs document: ${roomName}`);
         } catch (error) {
-          this.logger.error(`Failed to archive log for room ${roomName}`, error);
+          this.logger.error(
+            `Failed to archive log for room ${roomName}`,
+            error,
+          );
         }
       }
     }
@@ -77,7 +84,7 @@ export class YjsService implements OnModuleInit {
    */
   getRoomName(workspaceId: string, date?: Date): string {
     const d = date || new Date();
-    const dateStr = d.toISOString().split('T')[0]; // YYYY-MM-DD
+    const dateStr = d.toISOString().split("T")[0]; // YYYY-MM-DD
     return `${workspaceId}-${dateStr}`;
   }
 

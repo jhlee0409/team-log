@@ -1,24 +1,25 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { WorkspaceService } from './workspace.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Test, TestingModule } from "@nestjs/testing";
+import { WorkspaceService } from "./workspace.service";
+import { PrismaService } from "../prisma/prisma.service";
+import { UserService } from "../user/user.service";
+import { NotFoundException, ForbiddenException } from "@nestjs/common";
 
-describe('WorkspaceService', () => {
+describe("WorkspaceService", () => {
   let service: WorkspaceService;
   let prismaService: PrismaService;
 
   const mockWorkspace = {
-    id: 'workspace-1',
-    name: 'Test Workspace',
+    id: "workspace-1",
+    name: "Test Workspace",
     createdAt: new Date(),
     updatedAt: new Date(),
   };
 
   const mockUser = {
-    id: 'user-1',
-    githubId: '12345',
-    githubUsername: 'testuser',
-    email: 'test@example.com',
+    id: "user-1",
+    githubId: "12345",
+    githubUsername: "testuser",
+    email: "test@example.com",
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -44,6 +45,13 @@ describe('WorkspaceService', () => {
     },
   };
 
+  const mockUserService = {
+    findById: jest.fn(),
+    findByGithubId: jest.fn(),
+    findByGithubUsername: jest.fn(),
+    create: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -51,6 +59,10 @@ describe('WorkspaceService', () => {
         {
           provide: PrismaService,
           useValue: mockPrismaService,
+        },
+        {
+          provide: UserService,
+          useValue: mockUserService,
         },
       ],
     }).compile();
@@ -63,34 +75,36 @@ describe('WorkspaceService', () => {
     jest.clearAllMocks();
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(service).toBeDefined();
   });
 
-  describe('create', () => {
-    it('should create a workspace with creator as admin', async () => {
+  describe("create", () => {
+    it("should create a workspace with creator as admin", async () => {
       const workspaceWithMembers = {
         ...mockWorkspace,
         members: [
           {
             userId: mockUser.id,
-            role: 'ADMIN',
+            role: "ADMIN",
           },
         ],
       };
 
-      mockPrismaService.workspace.create.mockResolvedValue(workspaceWithMembers);
+      mockPrismaService.workspace.create.mockResolvedValue(
+        workspaceWithMembers,
+      );
 
-      const result = await service.create('Test Workspace', mockUser.id);
+      const result = await service.create("Test Workspace", mockUser.id);
 
       expect(result).toEqual(workspaceWithMembers);
       expect(mockPrismaService.workspace.create).toHaveBeenCalledWith({
         data: {
-          name: 'Test Workspace',
+          name: "Test Workspace",
           members: {
             create: {
               userId: mockUser.id,
-              role: 'ADMIN',
+              role: "ADMIN",
             },
           },
         },
@@ -105,8 +119,8 @@ describe('WorkspaceService', () => {
     });
   });
 
-  describe('findById', () => {
-    it('should return workspace if found', async () => {
+  describe("findById", () => {
+    it("should return workspace if found", async () => {
       mockPrismaService.workspace.findUnique.mockResolvedValue(mockWorkspace);
 
       const result = await service.findById(mockWorkspace.id);
@@ -114,17 +128,17 @@ describe('WorkspaceService', () => {
       expect(result).toEqual(mockWorkspace);
     });
 
-    it('should throw NotFoundException if workspace not found', async () => {
+    it("should throw NotFoundException if workspace not found", async () => {
       mockPrismaService.workspace.findUnique.mockResolvedValue(null);
 
-      await expect(service.findById('non-existent')).rejects.toThrow(
+      await expect(service.findById("non-existent")).rejects.toThrow(
         NotFoundException,
       );
     });
   });
 
-  describe('findUserWorkspaces', () => {
-    it('should return all workspaces for a user', async () => {
+  describe("findUserWorkspaces", () => {
+    it("should return all workspaces for a user", async () => {
       const mockWorkspaces = [mockWorkspace];
       mockPrismaService.workspace.findMany.mockResolvedValue(mockWorkspaces);
 
@@ -150,14 +164,14 @@ describe('WorkspaceService', () => {
     });
   });
 
-  describe('inviteMemberByGithubUsername', () => {
-    it('should invite member successfully', async () => {
+  describe("inviteMemberByGithubUsername", () => {
+    it("should invite member successfully", async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
       mockPrismaService.workspaceMember.findUnique.mockResolvedValue(null);
       mockPrismaService.workspaceMember.create.mockResolvedValue({
         workspaceId: mockWorkspace.id,
         userId: mockUser.id,
-        role: 'MEMBER',
+        role: "MEMBER",
       });
 
       const result = await service.inviteMemberByGithubUsername(
@@ -169,24 +183,27 @@ describe('WorkspaceService', () => {
       expect(mockPrismaService.workspaceMember.create).toHaveBeenCalled();
     });
 
-    it('should throw NotFoundException if user not found', async () => {
+    it("should throw NotFoundException if user not found", async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.inviteMemberByGithubUsername(mockWorkspace.id, 'nonexistent'),
+        service.inviteMemberByGithubUsername(mockWorkspace.id, "nonexistent"),
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw ForbiddenException if user already member', async () => {
+    it("should throw ForbiddenException if user already member", async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
       mockPrismaService.workspaceMember.findUnique.mockResolvedValue({
         workspaceId: mockWorkspace.id,
         userId: mockUser.id,
-        role: 'MEMBER',
+        role: "MEMBER",
       });
 
       await expect(
-        service.inviteMemberByGithubUsername(mockWorkspace.id, mockUser.githubUsername),
+        service.inviteMemberByGithubUsername(
+          mockWorkspace.id,
+          mockUser.githubUsername,
+        ),
       ).rejects.toThrow(ForbiddenException);
     });
   });

@@ -1,14 +1,18 @@
-import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
-import { AppModule } from './app.module';
+import { NestFactory } from "@nestjs/core";
+import { ValidationPipe } from "@nestjs/common";
+import { AppModule } from "./app.module";
+import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Global exception filter for standardized error responses
+  app.useGlobalFilters(new HttpExceptionFilter());
+
   // Enable CORS for VS Code extension
-  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
-    'http://localhost:3000',
-    'http://localhost:5173',
+  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [
+    "http://localhost:3000",
+    "http://localhost:5173",
   ];
 
   app.enableCors({
@@ -17,9 +21,9 @@ async function bootstrap() {
       if (!origin) return callback(null, true);
 
       // Check if origin matches any allowed pattern (supports wildcards for vscode-webview)
-      const isAllowed = allowedOrigins.some(allowed => {
-        if (allowed.includes('*')) {
-          const pattern = new RegExp('^' + allowed.replace(/\*/g, '.*') + '$');
+      const isAllowed = allowedOrigins.some((allowed) => {
+        if (allowed.includes("*")) {
+          const pattern = new RegExp("^" + allowed.replace(/\*/g, ".*") + "$");
           return pattern.test(origin);
         }
         return allowed === origin;
@@ -28,13 +32,13 @@ async function bootstrap() {
       if (isAllowed) {
         callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS'));
+        callback(new Error("Not allowed by CORS"));
       }
     },
     credentials: true,
   });
 
-  // Enable validation
+  // Enable validation with automatic transformation
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

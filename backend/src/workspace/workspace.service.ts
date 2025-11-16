@@ -1,6 +1,12 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { UserService } from '../user/user.service';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { UserService } from "../user/user.service";
+import {
+  WorkspaceNotFoundException,
+  UserNotFoundException,
+  MemberAlreadyExistsException,
+  BusinessException,
+} from "../common/exceptions/business.exception";
 
 @Injectable()
 export class WorkspaceService {
@@ -16,7 +22,7 @@ export class WorkspaceService {
         members: {
           create: {
             userId: ownerId,
-            role: 'OWNER',
+            role: "OWNER",
           },
         },
       },
@@ -45,7 +51,7 @@ export class WorkspaceService {
     });
 
     if (!workspace) {
-      throw new NotFoundException('Workspace not found');
+      throw new WorkspaceNotFoundException(id);
     }
 
     return workspace;
@@ -75,15 +81,13 @@ export class WorkspaceService {
     githubUsername: string,
   ) {
     // Remove @ if present
-    const cleanUsername = githubUsername.replace(/^@/, '');
+    const cleanUsername = githubUsername.replace(/^@/, "");
 
     // Find user by GitHub username
     const user = await this.userService.findByGithubUsername(cleanUsername);
 
     if (!user) {
-      throw new NotFoundException(
-        `User with GitHub username @${cleanUsername} not found. They need to sign in to TeamLog first.`,
-      );
+      throw new UserNotFoundException(cleanUsername);
     }
 
     // Check if user is already a member
@@ -97,7 +101,7 @@ export class WorkspaceService {
     });
 
     if (existingMember) {
-      throw new BadRequestException('User is already a member of this workspace');
+      throw new MemberAlreadyExistsException(cleanUsername, workspaceId);
     }
 
     // Add user to workspace
@@ -105,7 +109,7 @@ export class WorkspaceService {
       data: {
         userId: user.id,
         workspaceId,
-        role: 'MEMBER',
+        role: "MEMBER",
       },
       include: {
         user: true,
@@ -126,11 +130,19 @@ export class WorkspaceService {
     });
 
     if (!member) {
-      throw new NotFoundException('Member not found');
+      throw new BusinessException(
+        "MEMBER_NOT_FOUND",
+        "Member not found in this workspace",
+        404,
+      );
     }
 
-    if (member.role === 'OWNER') {
-      throw new BadRequestException('Cannot remove workspace owner');
+    if (member.role === "OWNER") {
+      throw new BusinessException(
+        "CANNOT_REMOVE_OWNER",
+        "Cannot remove workspace owner. Transfer ownership first.",
+        400,
+      );
     }
 
     await this.prisma.workspaceMember.delete({
@@ -142,6 +154,6 @@ export class WorkspaceService {
       },
     });
 
-    return { message: 'Member removed successfully' };
+    return { message: "Member removed successfully" };
   }
 }

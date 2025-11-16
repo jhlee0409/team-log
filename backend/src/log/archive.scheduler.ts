@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { LogService } from './log.service';
-import { YjsService } from '../yjs/yjs.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { LogService } from "./log.service";
+import { YjsService } from "../yjs/yjs.service";
 
 @Injectable()
 export class ArchiveScheduler {
@@ -13,11 +13,11 @@ export class ArchiveScheduler {
   ) {}
 
   // Run at midnight KST (UTC+9) - which is 3 PM UTC
-  @Cron('0 15 * * *', {
-    timeZone: 'UTC',
+  @Cron("0 15 * * *", {
+    timeZone: "UTC",
   })
   async archiveDailyLogs() {
-    this.logger.log('Starting daily log archiving...');
+    this.logger.log("Starting daily log archiving...");
 
     try {
       const yesterday = new Date();
@@ -27,10 +27,10 @@ export class ArchiveScheduler {
       const archived = await this.yjsService.archiveYesterdayLogs(yesterday);
 
       this.logger.log(
-        `Successfully archived ${archived} workspace logs for ${yesterday.toISOString().split('T')[0]}`,
+        `Successfully archived ${archived} workspace logs for ${yesterday.toISOString().split("T")[0]}`,
       );
     } catch (error) {
-      this.logger.error('Failed to archive daily logs', error);
+      this.logger.error("Failed to archive daily logs", error);
     }
   }
 }

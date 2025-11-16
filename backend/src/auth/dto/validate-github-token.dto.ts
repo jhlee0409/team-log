@@ -1,7 +1,7 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsString } from "class-validator";
 
 export class ValidateGithubTokenDto {
-  @IsNotEmpty({ message: 'GitHub token is required' })
-  @IsString({ message: 'GitHub token must be a string' })
+  @IsNotEmpty({ message: "GitHub token is required" })
+  @IsString({ message: "GitHub token must be a string" })
   token: string;
 }

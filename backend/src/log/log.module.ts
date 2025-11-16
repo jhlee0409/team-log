@@ -1,7 +1,7 @@
-import { Module } from '@nestjs/common';
-import { LogService } from './log.service';
-import { LogController } from './log.controller';
-import { ArchiveScheduler } from './archive.scheduler';
+import { Module } from "@nestjs/common";
+import { LogService } from "./log.service";
+import { LogController } from "./log.controller";
+import { ArchiveScheduler } from "./archive.scheduler";
 
 @Module({
   controllers: [LogController],
