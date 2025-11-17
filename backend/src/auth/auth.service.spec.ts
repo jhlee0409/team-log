@@ -7,8 +7,6 @@ import { ValidatedUser } from "./interfaces/jwt-payload.interface";
 
 describe("AuthService", () => {
   let service: AuthService;
-  let userService: UserService;
-  let jwtService: JwtService;
 
   const mockUser: ValidatedUser = {
     id: "1",
@@ -44,8 +42,6 @@ describe("AuthService", () => {
     }).compile();
 
     service = module.get<AuthService>(AuthService);
-    userService = module.get<UserService>(UserService);
-    jwtService = module.get<JwtService>(JwtService);
   });
 
   afterEach(() => {

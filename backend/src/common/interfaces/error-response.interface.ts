@@ -37,7 +37,7 @@ export interface ErrorResponse {
    * Additional error details (validation errors, context, etc.)
    * @optional
    */
-  details?: any;
+  details?: unknown;
 }
 
 /**

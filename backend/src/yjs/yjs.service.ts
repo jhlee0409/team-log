@@ -6,7 +6,7 @@ import {
 } from "@nestjs/common";
 import * as Y from "yjs";
 import { WebSocketServer } from "ws";
-import { setupWSConnection, setPersistence, docs } from "y-websocket/bin/utils";
+import { setupWSConnection, docs } from "y-websocket/bin/utils";
 import { LogService } from "../log/log.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { JwtService } from "@nestjs/jwt";
@@ -52,7 +52,9 @@ export class YjsService implements OnModuleInit, OnModuleDestroy {
         // Step 3: Extract room name from URL
         const roomName = this.extractRoomName(req.url);
         if (!roomName) {
-          this.logger.warn("WebSocket connection rejected: No room name in URL");
+          this.logger.warn(
+            "WebSocket connection rejected: No room name in URL",
+          );
           ws.close(4002, "Room name required");
           return;
         }
@@ -60,23 +62,31 @@ export class YjsService implements OnModuleInit, OnModuleDestroy {
         // Step 4: Extract workspaceId from room name (format: workspaceId-YYYY-MM-DD)
         const workspaceId = this.extractWorkspaceIdFromRoom(roomName);
         if (!workspaceId) {
-          this.logger.warn(`WebSocket connection rejected: Invalid room format: ${roomName}`);
+          this.logger.warn(
+            `WebSocket connection rejected: Invalid room format: ${roomName}`,
+          );
           ws.close(4002, "Invalid room format");
           return;
         }
 
         // Step 5: Verify workspace membership
-        const isMember = await this.verifyWorkspaceMembership(workspaceId, user.id);
+        const isMember = await this.verifyWorkspaceMembership(
+          workspaceId,
+          user.id,
+        );
         if (!isMember) {
-          this.logger.warn(`WebSocket connection rejected: User ${user.id} not member of workspace ${workspaceId}`);
+          this.logger.warn(
+            `WebSocket connection rejected: User ${user.id} not member of workspace ${workspaceId}`,
+          );
           ws.close(4003, "Not authorized for this workspace");
           return;
         }
 
         // Step 6: Authentication and authorization successful - setup connection
-        this.logger.log(`WebSocket authenticated: user=${user.githubUsername}, workspace=${workspaceId}, room=${roomName}`);
+        this.logger.log(
+          `WebSocket authenticated: user=${user.githubUsername}, workspace=${workspaceId}, room=${roomName}`,
+        );
         setupWSConnection(ws, req);
-
       } catch (error) {
         this.logger.error("WebSocket authentication failed", error);
         ws.close(4000, "Authentication failed");
@@ -212,7 +222,7 @@ export class YjsService implements OnModuleInit, OnModuleDestroy {
     const activeWorkspaces = await this.prisma.workspace.findMany({
       select: { id: true },
     });
-    const activeWorkspaceIds = new Set(activeWorkspaces.map(w => w.id));
+    const activeWorkspaceIds = new Set(activeWorkspaces.map((w) => w.id));
 
     let cleanedCount = 0;
 
@@ -224,7 +234,9 @@ export class YjsService implements OnModuleInit, OnModuleDestroy {
 
         if (!workspaceId) {
           // Invalid room name format - clean it up
-          this.logger.warn(`Cleaning up document with invalid room format: ${roomName}`);
+          this.logger.warn(
+            `Cleaning up document with invalid room format: ${roomName}`,
+          );
           doc.destroy();
           docs.delete(roomName);
           cleanedCount++;
@@ -234,7 +246,9 @@ export class YjsService implements OnModuleInit, OnModuleDestroy {
         // Check if workspace still exists
         if (!activeWorkspaceIds.has(workspaceId)) {
           // Workspace has been deleted - clean up its document
-          this.logger.log(`Cleaning up orphaned document for deleted workspace: ${roomName}`);
+          this.logger.log(
+            `Cleaning up orphaned document for deleted workspace: ${roomName}`,
+          );
 
           // Try to archive the content first (if it exists)
           try {
@@ -251,13 +265,17 @@ export class YjsService implements OnModuleInit, OnModuleDestroy {
                 // Archive the content even though workspace is deleted
                 // (for data retention/audit purposes)
                 await this.logService.saveLog(workspaceId, date, content);
-                this.logger.log(`Archived orphaned document before cleanup: ${roomName}`);
+                this.logger.log(
+                  `Archived orphaned document before cleanup: ${roomName}`,
+                );
               }
             }
           } catch (archiveError) {
             this.logger.warn(
               `Could not archive orphaned document ${roomName}`,
-              archiveError instanceof Error ? archiveError.message : String(archiveError),
+              archiveError instanceof Error
+                ? archiveError.message
+                : String(archiveError),
             );
           }
 
@@ -321,7 +339,9 @@ export class YjsService implements OnModuleInit, OnModuleDestroy {
       // Try query parameter first (e.g., ws://localhost:1234?token=...)
       const url = parseUrl(req.url || "", true);
       if (url.query && url.query.token) {
-        return Array.isArray(url.query.token) ? url.query.token[0] : url.query.token;
+        return Array.isArray(url.query.token)
+          ? url.query.token[0]
+          : url.query.token;
       }
 
       // Try Authorization header
@@ -346,7 +366,10 @@ export class YjsService implements OnModuleInit, OnModuleDestroy {
       const user = await this.userService.findById(payload.sub);
       return user;
     } catch (error) {
-      this.logger.warn("JWT verification failed", error instanceof Error ? error.message : String(error));
+      this.logger.warn(
+        "JWT verification failed",
+        error instanceof Error ? error.message : String(error),
+      );
       return null;
     }
   }
@@ -396,7 +419,10 @@ export class YjsService implements OnModuleInit, OnModuleDestroy {
   /**
    * Verify user is a member of the workspace
    */
-  private async verifyWorkspaceMembership(workspaceId: string, userId: string): Promise<boolean> {
+  private async verifyWorkspaceMembership(
+    workspaceId: string,
+    userId: string,
+  ): Promise<boolean> {
     try {
       const member = await this.prisma.workspaceMember.findUnique({
         where: {

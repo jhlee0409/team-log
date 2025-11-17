@@ -405,7 +405,9 @@ describe("LogController", () => {
       // Controller returns raw content - sanitization should happen at service/client level
       // Test verifies controller doesn't execute or transform malicious content
       expect(result).toBeDefined();
-      expect(result.content).toBe("<script>alert('xss')</script>Normal content");
+      expect(result.content).toBe(
+        "<script>alert('xss')</script>Normal content",
+      );
       expect(typeof result.content).toBe("string");
     });
 
@@ -416,14 +418,14 @@ describe("LogController", () => {
 
       const maliciousLog = {
         ...mockLog,
-        content: '<img src=x onerror="alert(\'xss\')">',
+        content: "<img src=x onerror=\"alert('xss')\">",
       };
 
       mockLogService.getLog.mockResolvedValue(maliciousLog);
 
       const result = await controller.getLog("workspace-123", dto);
 
-      expect(result.content).toBe('<img src=x onerror="alert(\'xss\')">');
+      expect(result.content).toBe("<img src=x onerror=\"alert('xss')\">");
     });
 
     it("should safely return log content with iframe injection", async () => {
@@ -433,7 +435,7 @@ describe("LogController", () => {
 
       const maliciousLog = {
         ...mockLog,
-        content: '<iframe src="javascript:alert(\'xss\')"></iframe>',
+        content: "<iframe src=\"javascript:alert('xss')\"></iframe>",
       };
 
       mockLogService.getLog.mockResolvedValue(maliciousLog);
@@ -441,7 +443,7 @@ describe("LogController", () => {
       const result = await controller.getLog("workspace-123", dto);
 
       expect(result.content).toBe(
-        '<iframe src="javascript:alert(\'xss\')"></iframe>',
+        "<iframe src=\"javascript:alert('xss')\"></iframe>",
       );
     });
 
@@ -453,7 +455,7 @@ describe("LogController", () => {
       const maliciousLog = {
         ...mockLog,
         content:
-          '<div onload="alert(\'xss\')" onclick="alert(\'click\')">Content</div>',
+          "<div onload=\"alert('xss')\" onclick=\"alert('click')\">Content</div>",
       };
 
       mockLogService.getLog.mockResolvedValue(maliciousLog);
@@ -471,7 +473,7 @@ describe("LogController", () => {
 
       const maliciousLog = {
         ...mockLog,
-        content: '<a href="javascript:alert(\'xss\')">Click me</a>',
+        content: "<a href=\"javascript:alert('xss')\">Click me</a>",
       };
 
       mockLogService.getLog.mockResolvedValue(maliciousLog);
@@ -479,7 +481,7 @@ describe("LogController", () => {
       const result = await controller.getLog("workspace-123", dto);
 
       expect(result.content).toBe(
-        '<a href="javascript:alert(\'xss\')">Click me</a>',
+        "<a href=\"javascript:alert('xss')\">Click me</a>",
       );
     });
 
@@ -506,9 +508,7 @@ describe("LogController", () => {
       expect(result.tasks[0]).toBe(
         "<script>alert('xss')</script>Implement feature",
       );
-      expect(result.tasks[1]).toBe(
-        "Fix bug <img src=x onerror=alert('xss')>",
-      );
+      expect(result.tasks[1]).toBe("Fix bug <img src=x onerror=alert('xss')>");
     });
 
     it("should safely return multiple logs with XSS content in range query", async () => {
@@ -552,8 +552,7 @@ describe("LogController", () => {
 
       const maliciousLog = {
         ...mockLog,
-        content:
-          "&lt;script&gt;alert('xss')&lt;/script&gt;",
+        content: "&lt;script&gt;alert('xss')&lt;/script&gt;",
       };
 
       mockLogService.getLog.mockResolvedValue(maliciousLog);
@@ -561,9 +560,7 @@ describe("LogController", () => {
       const result = await controller.getLog("workspace-123", dto);
 
       // HTML entities should remain as-is (not double-encoded)
-      expect(result.content).toBe(
-        "&lt;script&gt;alert('xss')&lt;/script&gt;",
-      );
+      expect(result.content).toBe("&lt;script&gt;alert('xss')&lt;/script&gt;");
     });
 
     it("should handle log content with SVG-based XSS", async () => {
@@ -573,8 +570,7 @@ describe("LogController", () => {
 
       const maliciousLog = {
         ...mockLog,
-        content:
-          '<svg onload="alert(\'xss\')"><circle r="10"/></svg>',
+        content: '<svg onload="alert(\'xss\')"><circle r="10"/></svg>',
       };
 
       mockLogService.getLog.mockResolvedValue(maliciousLog);
@@ -593,7 +589,7 @@ describe("LogController", () => {
       const maliciousLog = {
         ...mockLog,
         content:
-          '<a href="data:text/html,<script>alert(\'xss\')</script>">Click</a>',
+          "<a href=\"data:text/html,<script>alert('xss')</script>\">Click</a>",
       };
 
       mockLogService.getLog.mockResolvedValue(maliciousLog);

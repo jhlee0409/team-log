@@ -99,7 +99,11 @@ describe("LogService", () => {
         date,
       });
 
-      const result = await service.saveLog(mockWorkspaceId, date, updatedContent);
+      const result = await service.saveLog(
+        mockWorkspaceId,
+        date,
+        updatedContent,
+      );
 
       expect(result.content).toBe(updatedContent);
       expect(mockPrismaService.dailyLog.upsert).toHaveBeenCalledWith({

@@ -5,6 +5,11 @@ import { CreateWorkspaceDto } from "./dto/create-workspace.dto";
 import { InviteMemberDto } from "./dto/invite-member.dto";
 import { WorkspaceAdminGuard } from "../auth/guards/admin.guard";
 import { CanActivate } from "@nestjs/common";
+import {
+  WorkspaceAccessDeniedException,
+  InsufficientPermissionException,
+  WorkspaceNotFoundException,
+} from "../common/exceptions/business.exception";
 
 // Mock guard that always allows access
 const mockAdminGuard: CanActivate = {
@@ -338,10 +343,7 @@ describe("WorkspaceController", () => {
 
       mockWorkspaceService.removeMember.mockResolvedValue(successMessage);
 
-      const result = await controller.removeMember(
-        "workspace-123",
-        "user-456",
-      );
+      const result = await controller.removeMember("workspace-123", "user-456");
 
       expect(workspaceService.removeMember).toHaveBeenCalledWith(
         "workspace-123",
@@ -357,10 +359,7 @@ describe("WorkspaceController", () => {
 
       mockWorkspaceService.removeMember.mockResolvedValue(successMessage);
 
-      const result = await controller.removeMember(
-        "workspace-789",
-        "user-999",
-      );
+      const result = await controller.removeMember("workspace-789", "user-999");
 
       expect(workspaceService.removeMember).toHaveBeenCalledWith(
         "workspace-789",
@@ -374,10 +373,7 @@ describe("WorkspaceController", () => {
 
       mockWorkspaceService.removeMember.mockResolvedValue(successMessage);
 
-      const result = await controller.removeMember(
-        "workspace-abc",
-        "user-xyz",
-      );
+      const result = await controller.removeMember("workspace-abc", "user-xyz");
 
       expect(workspaceService.removeMember).toHaveBeenCalledWith(
         "workspace-abc",
@@ -439,10 +435,9 @@ describe("WorkspaceController", () => {
       const mockRequest = { user: user1 } as any;
 
       // Service should throw WorkspaceAccessDeniedException
-      const { WorkspaceAccessDeniedException } = require("../common/exceptions/business.exception");
 
       mockWorkspaceService.findById.mockRejectedValue(
-        new WorkspaceAccessDeniedException(user2OwnedWorkspace),
+        new WorkspaceAccessDeniedException(user2OwnedWorkspace, "MEMBER", "NONE"),
       );
 
       await expect(
@@ -457,10 +452,8 @@ describe("WorkspaceController", () => {
       // WorkspaceAdminGuard should deny this at guard level
       // Service layer should also verify membership
 
-      const { InsufficientPermissionException } = require("../common/exceptions/business.exception");
-
       mockWorkspaceService.inviteMemberByGithubUsername.mockRejectedValue(
-        new InsufficientPermissionException("Only admins can invite members"),
+        new InsufficientPermissionException("ADMIN", "MEMBER", "invite members"),
       );
 
       await expect(
@@ -472,10 +465,9 @@ describe("WorkspaceController", () => {
       const regularMember = { id: "member-123" };
 
       // Only ADMIN/OWNER can remove members
-      const { InsufficientPermissionException } = require("../common/exceptions/business.exception");
 
       mockWorkspaceService.removeMember.mockRejectedValue(
-        new InsufficientPermissionException("Only admins can remove members"),
+        new InsufficientPermissionException("ADMIN", "MEMBER", "remove members"),
       );
 
       await expect(
@@ -485,15 +477,13 @@ describe("WorkspaceController", () => {
 
     it("should prevent accessing workspace with manipulated ID", async () => {
       const maliciousWorkspaceIds = [
-        "../../../etc/passwd",  // Path traversal attempt
-        "'; DROP TABLE workspaces; --",  // SQL injection attempt
-        "<script>alert('xss')</script>",  // XSS attempt
-        "workspace-999999",  // Non-existent workspace
+        "../../../etc/passwd", // Path traversal attempt
+        "'; DROP TABLE workspaces; --", // SQL injection attempt
+        "<script>alert('xss')</script>", // XSS attempt
+        "workspace-999999", // Non-existent workspace
       ];
 
       for (const maliciousId of maliciousWorkspaceIds) {
-        const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
-
         mockWorkspaceService.findById.mockRejectedValue(
           new WorkspaceNotFoundException(maliciousId),
         );
@@ -527,7 +517,7 @@ describe("WorkspaceController", () => {
 
       expect(mockWorkspaceService.create).toHaveBeenCalledWith(
         dto.name,
-        attacker.id,  // Should use authenticated user ID
+        attacker.id, // Should use authenticated user ID
       );
     });
 
@@ -540,8 +530,6 @@ describe("WorkspaceController", () => {
         "workspace-4",
         "workspace-5",
       ];
-
-      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
 
       // All should return same error (not revealing which exist)
       for (const id of workspaceIds) {
@@ -576,8 +564,6 @@ describe("WorkspaceController", () => {
     it("should reject workspace ID with directory traversal (../ pattern)", async () => {
       const traversalId = "../../../etc/passwd";
 
-      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
-
       mockWorkspaceService.findById.mockRejectedValue(
         new WorkspaceNotFoundException(traversalId),
       );
@@ -590,8 +576,6 @@ describe("WorkspaceController", () => {
     it("should reject workspace ID with Windows path traversal (..\\)", async () => {
       const traversalId = "..\\..\\..\\windows\\system32\\config\\sam";
 
-      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
-
       mockWorkspaceService.findById.mockRejectedValue(
         new WorkspaceNotFoundException(traversalId),
       );
@@ -601,8 +585,6 @@ describe("WorkspaceController", () => {
 
     it("should reject workspace ID with URL-encoded path traversal", async () => {
       const traversalId = "%2e%2e%2f%2e%2e%2fetc%2fpasswd";
-
-      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
 
       mockWorkspaceService.findById.mockRejectedValue(
         new WorkspaceNotFoundException(traversalId),
@@ -614,8 +596,6 @@ describe("WorkspaceController", () => {
     it("should reject workspace ID with double-encoded path traversal", async () => {
       const traversalId = "%252e%252e%252f%252e%252e%252fetc%252fpasswd";
 
-      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
-
       mockWorkspaceService.findById.mockRejectedValue(
         new WorkspaceNotFoundException(traversalId),
       );
@@ -625,8 +605,6 @@ describe("WorkspaceController", () => {
 
     it("should reject workspace ID with null byte injection", async () => {
       const traversalId = "workspace-123%00.txt";
-
-      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
 
       mockWorkspaceService.findById.mockRejectedValue(
         new WorkspaceNotFoundException(traversalId),
@@ -638,8 +616,6 @@ describe("WorkspaceController", () => {
     it("should reject workspace ID with absolute path (Unix)", async () => {
       const traversalId = "/etc/passwd";
 
-      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
-
       mockWorkspaceService.findById.mockRejectedValue(
         new WorkspaceNotFoundException(traversalId),
       );
@@ -650,8 +626,6 @@ describe("WorkspaceController", () => {
     it("should reject workspace ID with absolute path (Windows)", async () => {
       const traversalId = "C:\\Windows\\System32\\config\\sam";
 
-      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
-
       mockWorkspaceService.findById.mockRejectedValue(
         new WorkspaceNotFoundException(traversalId),
       );
@@ -661,8 +635,6 @@ describe("WorkspaceController", () => {
 
     it("should reject workspace ID with Unicode path traversal", async () => {
       const traversalId = "..%c0%af..%c0%af..%c0%afetc%c0%afpasswd";
-
-      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
 
       mockWorkspaceService.findById.mockRejectedValue(
         new WorkspaceNotFoundException(traversalId),
@@ -677,8 +649,6 @@ describe("WorkspaceController", () => {
         "..../..../etc/passwd", // Quadruple dots
         "../..///../etc/passwd", // Mixed slashes
       ];
-
-      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
 
       for (const traversalId of traversalIds) {
         mockWorkspaceService.findById.mockRejectedValue(
@@ -697,8 +667,6 @@ describe("WorkspaceController", () => {
         "C:\\boot.ini",
       ];
 
-      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
-
       for (const userId of maliciousUserIds) {
         mockWorkspaceService.removeMember.mockRejectedValue(
           new WorkspaceNotFoundException("workspace-123"),
@@ -714,8 +682,6 @@ describe("WorkspaceController", () => {
       const maliciousWorkspaceId = "../../../var/log/system";
       const maliciousUserId = "../../../etc/passwd";
 
-      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
-
       mockWorkspaceService.removeMember.mockRejectedValue(
         new WorkspaceNotFoundException(maliciousWorkspaceId),
       );
@@ -728,8 +694,6 @@ describe("WorkspaceController", () => {
     it("should reject workspace ID with path traversal in invite", async () => {
       const dto: InviteMemberDto = { githubUsername: "validuser" };
       const traversalId = "../../sensitive/data";
-
-      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
 
       mockWorkspaceService.inviteMemberByGithubUsername.mockRejectedValue(
         new WorkspaceNotFoundException(traversalId),
@@ -746,8 +710,6 @@ describe("WorkspaceController", () => {
         "workspace-123|ls -la /etc",
         "workspace-123 && cat /etc/passwd",
       ];
-
-      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
 
       for (const traversalId of specialTraversalIds) {
         mockWorkspaceService.findById.mockRejectedValue(
@@ -766,7 +728,6 @@ describe("WorkspaceController", () => {
       const maliciousUserId = "../../../etc/passwd";
 
       // Service should validate and reject malicious IDs
-      const { WorkspaceNotFoundException } = require("../common/exceptions/business.exception");
 
       mockWorkspaceService.removeMember.mockRejectedValue(
         new WorkspaceNotFoundException(validWorkspaceId),

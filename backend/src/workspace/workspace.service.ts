@@ -57,7 +57,11 @@ export class WorkspaceService {
     return workspace;
   }
 
-  async findUserWorkspaces(userId: string, page: number = 1, limit: number = 20) {
+  async findUserWorkspaces(
+    userId: string,
+    page: number = 1,
+    limit: number = 20,
+  ) {
     const skip = (page - 1) * limit;
 
     // Get total count for pagination
@@ -90,7 +94,7 @@ export class WorkspaceService {
       skip,
       take: limit,
       orderBy: {
-        createdAt: 'desc',
+        createdAt: "desc",
       },
     });
 

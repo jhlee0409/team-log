@@ -144,9 +144,7 @@ describe("UserController", () => {
         user: { id: "invalid-user" },
       } as any;
 
-      mockUserService.findById.mockRejectedValue(
-        new Error("User not found"),
-      );
+      mockUserService.findById.mockRejectedValue(new Error("User not found"));
 
       await expect(controller.getMe(mockRequest)).rejects.toThrow(
         "User not found",

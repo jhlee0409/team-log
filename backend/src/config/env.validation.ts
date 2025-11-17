@@ -110,9 +110,7 @@ export function validate(config: Record<string, unknown>) {
       return `${error.property}: ${constraints.join(", ")}`;
     });
 
-    throw new Error(
-      `Environment validation failed:\n${messages.join("\n")}`,
-    );
+    throw new Error(`Environment validation failed:\n${messages.join("\n")}`);
   }
 
   return validatedConfig;

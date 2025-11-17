@@ -155,9 +155,7 @@ describe("UserService", () => {
         workspaces: [],
       };
 
-      mockPrismaService.user.findUnique.mockResolvedValue(
-        userWithNoWorkspaces,
-      );
+      mockPrismaService.user.findUnique.mockResolvedValue(userWithNoWorkspaces);
 
       const result = await service.findById("user-456");
 
