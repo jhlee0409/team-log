@@ -5,7 +5,7 @@ import {
 } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import helmet from "helmet";
-import * as timeout from "connect-timeout";
+import timeout from "connect-timeout";
 import * as express from "express";
 import { AppModule } from "./app.module";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";

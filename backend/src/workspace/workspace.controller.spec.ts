@@ -281,22 +281,25 @@ describe("WorkspaceController", () => {
         githubUsername: "newuser",
       };
 
-      const mockInvitedWorkspace = {
-        ...mockWorkspace,
-        members: [
-          ...mockWorkspace.members,
-          {
-            id: "member-456",
-            userId: "user-456",
-            workspaceId: "workspace-123",
-            role: "MEMBER" as const,
-            joinedAt: new Date("2025-01-02"),
-          },
-        ],
+      const mockInvitedMember = {
+        id: "member-456",
+        userId: "user-456",
+        workspaceId: "workspace-123",
+        role: "MEMBER" as const,
+        joinedAt: new Date("2025-01-02"),
+        user: {
+          id: "user-456",
+          githubId: "github-456",
+          githubUsername: "newuser",
+          email: "newuser@example.com",
+          avatarUrl: "https://github.com/newuser.png",
+          createdAt: new Date("2025-01-02"),
+          updatedAt: new Date("2025-01-02"),
+        },
       };
 
       mockWorkspaceService.inviteMemberByGithubUsername.mockResolvedValue(
-        mockInvitedWorkspace,
+        mockInvitedMember,
       );
 
       const result = await controller.inviteMember("workspace-123", dto);
@@ -307,8 +310,9 @@ describe("WorkspaceController", () => {
       expect(
         workspaceService.inviteMemberByGithubUsername,
       ).toHaveBeenCalledTimes(1);
-      expect(result).toEqual(mockInvitedWorkspace);
-      expect(result.members).toHaveLength(2);
+      expect(result).toEqual(mockInvitedMember);
+      expect(result.role).toBe("MEMBER");
+      expect(result.user.githubUsername).toBe("newuser");
     });
 
     it("should invite different users", async () => {
