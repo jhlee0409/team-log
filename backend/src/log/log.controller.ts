@@ -1,4 +1,12 @@
-import { Controller, Get, Query, Param, UseGuards, Req, BadRequestException } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  Query,
+  Param,
+  UseGuards,
+  Req,
+  BadRequestException,
+} from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { Throttle } from "@nestjs/throttler";
 import {
@@ -23,7 +31,8 @@ export class LogController {
 
   @ApiOperation({
     summary: "Get daily log",
-    description: "Returns the daily log for a specific date (defaults to today)",
+    description:
+      "Returns the daily log for a specific date (defaults to today)",
   })
   @ApiParam({ name: "workspaceId", description: "Workspace UUID" })
   @ApiResponse({
@@ -31,7 +40,10 @@ export class LogController {
     description: "Daily log returned (null if not found)",
   })
   @ApiResponse({ status: 401, description: "Unauthorized" })
-  @ApiResponse({ status: 403, description: "Forbidden - Not a workspace member" })
+  @ApiResponse({
+    status: 403,
+    description: "Forbidden - Not a workspace member",
+  })
   @UseGuards(WorkspaceMemberGuard)
   @Get(":workspaceId")
   async getLog(
@@ -63,7 +75,10 @@ export class LogController {
     },
   })
   @ApiResponse({ status: 401, description: "Unauthorized" })
-  @ApiResponse({ status: 403, description: "Forbidden - Not a workspace member" })
+  @ApiResponse({
+    status: 403,
+    description: "Forbidden - Not a workspace member",
+  })
   @UseGuards(WorkspaceMemberGuard)
   @Get(":workspaceId/yesterday-tasks")
   async getYesterdayTasks(
@@ -80,17 +95,27 @@ export class LogController {
 
   @ApiOperation({
     summary: "Get logs in date range",
-    description: "Returns all logs within the specified date range (max 1 year)",
+    description:
+      "Returns all logs within the specified date range (max 1 year)",
   })
   @ApiParam({ name: "workspaceId", description: "Workspace UUID" })
   @ApiResponse({
     status: 200,
     description: "List of logs in the date range",
   })
-  @ApiResponse({ status: 400, description: "Bad Request - Date range exceeds 1 year" })
+  @ApiResponse({
+    status: 400,
+    description: "Bad Request - Date range exceeds 1 year",
+  })
   @ApiResponse({ status: 401, description: "Unauthorized" })
-  @ApiResponse({ status: 403, description: "Forbidden - Not a workspace member" })
-  @ApiResponse({ status: 429, description: "Too Many Requests - Rate limit exceeded" })
+  @ApiResponse({
+    status: 403,
+    description: "Forbidden - Not a workspace member",
+  })
+  @ApiResponse({
+    status: 429,
+    description: "Too Many Requests - Rate limit exceeded",
+  })
   @Throttle({ default: { limit: 10, ttl: 60000 } }) // Stricter limit: 10 requests per minute
   @UseGuards(WorkspaceMemberGuard)
   @Get(":workspaceId/range")
@@ -106,7 +131,8 @@ export class LogController {
 
     // Validate date range size to prevent database DoS
     if (start && end) {
-      const daysDiff = Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+      const daysDiff =
+        Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
       if (daysDiff > 365) {
         throw new BadRequestException(
           "Date range cannot exceed 1 year (365 days)",

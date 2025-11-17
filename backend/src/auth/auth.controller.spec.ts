@@ -6,7 +6,6 @@ import { ValidatedUser } from "./interfaces/jwt-payload.interface";
 
 describe("AuthController", () => {
   let controller: AuthController;
-  let authService: AuthService;
 
   const mockValidatedUser: ValidatedUser = {
     id: "user-123",
@@ -33,7 +32,6 @@ describe("AuthController", () => {
     }).compile();
 
     controller = module.get<AuthController>(AuthController);
-    authService = module.get<AuthService>(AuthService);
 
     // Clear all mocks before each test
     jest.clearAllMocks();

@@ -187,7 +187,7 @@ describe("WorkspaceService", () => {
         skip: 0,
         take: 20,
         orderBy: {
-          createdAt: 'desc',
+          createdAt: "desc",
         },
       });
     });
@@ -248,10 +248,7 @@ describe("WorkspaceService", () => {
         role: "MEMBER",
       });
 
-      await service.inviteMemberByGithubUsername(
-        mockWorkspace.id,
-        "@testuser",
-      );
+      await service.inviteMemberByGithubUsername(mockWorkspace.id, "@testuser");
 
       expect(mockUserService.findByGithubUsername).toHaveBeenCalledWith(
         "testuser",
@@ -374,9 +371,7 @@ describe("WorkspaceService", () => {
       mockPrismaService.workspaceMember.findUnique.mockResolvedValue(
         regularMember,
       );
-      mockPrismaService.workspaceMember.delete.mockResolvedValue(
-        regularMember,
-      );
+      mockPrismaService.workspaceMember.delete.mockResolvedValue(regularMember);
 
       const result = await service.removeMember(
         mockWorkspace.id,

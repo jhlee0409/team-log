@@ -47,7 +47,8 @@ export class WorkspaceController {
 
   @ApiOperation({
     summary: "Get user's workspaces",
-    description: "Returns all workspaces where the authenticated user is a member (with pagination)",
+    description:
+      "Returns all workspaces where the authenticated user is a member (with pagination)",
   })
   @ApiResponse({
     status: 200,
@@ -104,7 +105,10 @@ export class WorkspaceController {
     description: "Member invited successfully",
   })
   @ApiResponse({ status: 401, description: "Unauthorized" })
-  @ApiResponse({ status: 403, description: "Forbidden - Admin access required" })
+  @ApiResponse({
+    status: 403,
+    description: "Forbidden - Admin access required",
+  })
   @ApiResponse({ status: 404, description: "User not found" })
   @ApiResponse({ status: 409, description: "Member already exists" })
   @Post(":workspaceId/invite")
@@ -121,7 +125,8 @@ export class WorkspaceController {
 
   @ApiOperation({
     summary: "Remove member from workspace",
-    description: "Removes a member from the workspace (requires admin/owner role)",
+    description:
+      "Removes a member from the workspace (requires admin/owner role)",
   })
   @ApiParam({ name: "workspaceId", description: "Workspace UUID" })
   @ApiParam({ name: "userId", description: "User UUID to remove" })
@@ -130,7 +135,10 @@ export class WorkspaceController {
     description: "Member removed successfully",
   })
   @ApiResponse({ status: 401, description: "Unauthorized" })
-  @ApiResponse({ status: 403, description: "Forbidden - Admin access required" })
+  @ApiResponse({
+    status: 403,
+    description: "Forbidden - Admin access required",
+  })
   @ApiResponse({ status: 404, description: "Member not found" })
   @ApiResponse({ status: 400, description: "Cannot remove workspace owner" })
   @Delete(":workspaceId/members/:userId")

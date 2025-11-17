@@ -1,11 +1,8 @@
 import { NestFactory } from "@nestjs/core";
-import {
-  ValidationPipe,
-  RequestTimeoutException,
-} from "@nestjs/common";
+import { ValidationPipe, RequestTimeoutException } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import helmet from "helmet";
-import * as timeout from "connect-timeout";
+import timeout from "connect-timeout";
 import * as express from "express";
 import { AppModule } from "./app.module";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
@@ -43,13 +40,15 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
 
   // Enable CORS for VS Code extension
-  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",").map(o => o.trim()) || [
-    "http://localhost:3000",
-    "http://localhost:5173",
-  ];
+  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",").map((o) =>
+    o.trim(),
+  ) || ["http://localhost:3000", "http://localhost:5173"];
 
   // Get allowed VS Code extension IDs (optional, for vscode-webview:// origins)
-  const allowedVSCodeExtensions = process.env.ALLOWED_VSCODE_EXTENSIONS?.split(",").map(e => e.trim()).filter(Boolean) || [];
+  const allowedVSCodeExtensions =
+    process.env.ALLOWED_VSCODE_EXTENSIONS?.split(",")
+      .map((e) => e.trim())
+      .filter(Boolean) || [];
 
   app.enableCors({
     origin: (origin, callback) => {

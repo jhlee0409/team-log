@@ -492,7 +492,12 @@ describe("YjsService", () => {
       process.env.YJS_PORT = "5678";
 
       // Create a new instance to test onModuleInit
-      const testService = new YjsService(logService, prismaService, jwtService, userService);
+      const testService = new YjsService(
+        logService,
+        prismaService,
+        jwtService,
+        userService,
+      );
 
       // onModuleInit should set up the WebSocket server
       // We can't fully test this in unit tests without mocking WebSocketServer
@@ -513,7 +518,12 @@ describe("YjsService", () => {
       delete process.env.YJS_PORT;
 
       // Create a new instance to test onModuleInit with default port
-      const testService = new YjsService(logService, prismaService, jwtService, userService);
+      const testService = new YjsService(
+        logService,
+        prismaService,
+        jwtService,
+        userService,
+      );
 
       expect(testService).toBeDefined();
 
@@ -538,7 +548,12 @@ describe("YjsService", () => {
 
     it("should return false before WebSocket server is initialized", () => {
       // Arrange - service created but onModuleInit not called
-      const testService = new YjsService(logService, prismaService, jwtService, userService);
+      const testService = new YjsService(
+        logService,
+        prismaService,
+        jwtService,
+        userService,
+      );
 
       // Act
       const result = testService.isWebSocketServerRunning();
@@ -634,7 +649,10 @@ describe("YjsService", () => {
       const date = new Date("2025-01-15");
       const deletedRoom = service.getRoomName(deletedWorkspaceId, date);
 
-      service.getDocument(deletedRoom).getText("content").insert(0, "   \n\t  ");
+      service
+        .getDocument(deletedRoom)
+        .getText("content")
+        .insert(0, "   \n\t  ");
 
       mockPrismaService.workspace.findMany.mockResolvedValue([]);
 
