@@ -1,12 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { EditorView, keymap, lineNumbers, highlightActiveLineGutter } from '@codemirror/view';
+import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, drawSelection, dropCursor, highlightActiveLine } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
+import { bracketMatching, indentOnInput, syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
+import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
+import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { markdown } from '@codemirror/lang-markdown';
 import { WebsocketProvider } from 'y-websocket';
 import { yCollab } from 'y-codemirror.next';
 import * as Y from 'yjs';
-import { apiService } from '../services/apiService';
+import { apiService, ApiServiceError } from '../services/apiService';
+import { isDailyLog, isYesterdayTasksResponse } from '../types/api.types';
 
 interface Props {
   workspace: { id: string; name: string };
@@ -52,15 +56,40 @@ export const Editor: React.FC<Props> = ({ workspace, user, onBack }) => {
       }
     });
 
-    // Create CodeMirror editor
+    // Create CodeMirror editor with comprehensive extensions
     const state = EditorState.create({
       doc: ytext.toString(),
       extensions: [
+        // Line numbers and gutters
         lineNumbers(),
         highlightActiveLineGutter(),
+        highlightActiveLine(),
+
+        // History (undo/redo)
         history(),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
+
+        // Keymaps
+        keymap.of([
+          ...closeBracketsKeymap,
+          ...defaultKeymap,
+          ...searchKeymap,
+          ...historyKeymap,
+          indentWithTab,
+        ]),
+
+        // Language support
         markdown(),
+        syntaxHighlighting(defaultHighlightStyle),
+        bracketMatching(),
+        closeBrackets(),
+        indentOnInput(),
+
+        // Selection and search
+        drawSelection(),
+        dropCursor(),
+        highlightSelectionMatches(),
+
+        // Yjs collaboration
         yCollab(ytext, provider.awareness),
       ],
     });
@@ -118,14 +147,22 @@ export const Editor: React.FC<Props> = ({ workspace, user, onBack }) => {
       alert(`Successfully invited ${inviteUsername}!`);
       setInviteUsername('');
       setShowInvite(false);
-    } catch (error: any) {
-      alert(error.message || 'Failed to invite user');
+    } catch (error) {
+      const errorMsg = error instanceof ApiServiceError
+        ? `${error.message} (${error.code})`
+        : 'Failed to invite user';
+      alert(errorMsg);
     }
   };
 
   const handleImportYesterdayTasks = async () => {
     try {
-      const result = await apiService.getYesterdayTasks(workspace.id) as { tasks: string[] };
+      const result = await apiService.getYesterdayTasks(workspace.id);
+
+      // Type guard validation
+      if (!isYesterdayTasksResponse(result)) {
+        throw new Error('Invalid yesterday tasks response format');
+      }
 
       if (result.tasks.length === 0) {
         alert('No uncompleted tasks from yesterday!');
@@ -145,7 +182,10 @@ export const Editor: React.FC<Props> = ({ workspace, user, onBack }) => {
         });
       }
     } catch (error) {
-      alert('Failed to import yesterday\'s tasks');
+      const errorMsg = error instanceof ApiServiceError
+        ? `${error.message} (${error.code})`
+        : 'Failed to import yesterday\'s tasks';
+      alert(errorMsg);
     }
   };
 
@@ -155,16 +195,19 @@ export const Editor: React.FC<Props> = ({ workspace, user, onBack }) => {
       yesterday.setDate(yesterday.getDate() - 1);
       const dateStr = yesterday.toISOString().split('T')[0];
 
-      const log = await apiService.getLog(workspace.id, dateStr) as { content: string } | null;
+      const log = await apiService.getLog(workspace.id, dateStr);
 
-      if (log) {
+      if (log && isDailyLog(log)) {
         setYesterdayContent(log.content);
         setViewMode('yesterday');
       } else {
         alert('No log found for yesterday');
       }
     } catch (error) {
-      alert('Failed to load yesterday\'s log');
+      const errorMsg = error instanceof ApiServiceError
+        ? `${error.message} (${error.code})`
+        : 'Failed to load yesterday\'s log';
+      alert(errorMsg);
     }
   };
 

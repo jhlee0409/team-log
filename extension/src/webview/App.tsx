@@ -2,25 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { AuthScreen } from './components/AuthScreen';
 import { WorkspaceSelector } from './components/WorkspaceSelector';
 import { Editor } from './components/Editor';
-import { apiService } from './services/apiService';
-
-interface User {
-  id: string;
-  githubUsername: string;
-  email: string;
-  avatarUrl: string;
-}
-
-interface Workspace {
-  id: string;
-  name: string;
-}
-
-interface ExtensionMessage {
-  type: string;
-  token?: string;
-  [key: string]: any;
-}
+import { apiService, ApiServiceError } from './services/apiService';
+import { User, Workspace, isAuthResponse, isWorkspaceArray, isWorkspace } from './types/api.types';
+import { ExtensionMessage } from './types/messages.types';
 
 const App: React.FC = () => {
   const [authToken, setAuthToken] = useState<string | null>(null);
@@ -68,44 +52,64 @@ const App: React.FC = () => {
         body: JSON.stringify({ token: githubToken }),
       });
 
-      const data = await response.json() as {
-        success: boolean;
-        access_token: string;
-        user: User;
-      };
+      const data = await response.json();
 
-      if (data.success) {
+      // Type guard validation
+      if (isAuthResponse(data) && data.success) {
         setAuthToken(data.access_token);
         setUser(data.user);
         apiService.setToken(data.access_token);
         await loadWorkspaces();
+      } else {
+        throw new Error('Invalid authentication response format');
       }
     } catch (error) {
       console.error('Authentication failed:', error);
+      if (error instanceof ApiServiceError) {
+        console.error(`Error code: ${error.code}, Details:`, error.details);
+      }
     }
   };
 
   const loadWorkspaces = async () => {
     try {
-      const ws = await apiService.getWorkspaces() as Workspace[];
-      setWorkspaces(ws);
+      const ws = await apiService.getWorkspaces();
 
-      // Auto-select first workspace or create one if none exist
-      if (ws.length > 0) {
-        setSelectedWorkspace(ws[0]);
+      // Type guard validation
+      if (isWorkspaceArray(ws)) {
+        setWorkspaces(ws);
+
+        // Auto-select first workspace or create one if none exist
+        if (ws.length > 0) {
+          setSelectedWorkspace(ws[0]);
+        }
+      } else {
+        throw new Error('Invalid workspaces response format');
       }
     } catch (error) {
       console.error('Failed to load workspaces:', error);
+      if (error instanceof ApiServiceError) {
+        console.error(`Error code: ${error.code}, Details:`, error.details);
+      }
     }
   };
 
   const handleCreateWorkspace = async (name: string) => {
     try {
-      const newWorkspace = await apiService.createWorkspace(name) as Workspace;
-      setWorkspaces([...workspaces, newWorkspace]);
-      setSelectedWorkspace(newWorkspace);
+      const newWorkspace = await apiService.createWorkspace(name);
+
+      // Type guard validation
+      if (isWorkspace(newWorkspace)) {
+        setWorkspaces([...workspaces, newWorkspace]);
+        setSelectedWorkspace(newWorkspace);
+      } else {
+        throw new Error('Invalid workspace response format');
+      }
     } catch (error) {
       console.error('Failed to create workspace:', error);
+      if (error instanceof ApiServiceError) {
+        console.error(`Error code: ${error.code}, Details:`, error.details);
+      }
     }
   };
 
