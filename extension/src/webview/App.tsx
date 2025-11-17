@@ -16,6 +16,12 @@ interface Workspace {
   name: string;
 }
 
+interface ExtensionMessage {
+  type: string;
+  token?: string;
+  [key: string]: any;
+}
+
 const App: React.FC = () => {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -34,12 +40,14 @@ const App: React.FC = () => {
     };
   }, []);
 
-  const handleMessage = async (event: MessageEvent) => {
+  const handleMessage = async (event: MessageEvent<ExtensionMessage>) => {
     const message = event.data;
 
     switch (message.type) {
       case 'authenticated':
-        await handleAuthentication(message.token);
+        if (message.token) {
+          await handleAuthentication(message.token);
+        }
         break;
       case 'refresh':
         if (authToken) {
@@ -60,7 +68,11 @@ const App: React.FC = () => {
         body: JSON.stringify({ token: githubToken }),
       });
 
-      const data = await response.json();
+      const data = await response.json() as {
+        success: boolean;
+        access_token: string;
+        user: User;
+      };
 
       if (data.success) {
         setAuthToken(data.access_token);
@@ -75,7 +87,7 @@ const App: React.FC = () => {
 
   const loadWorkspaces = async () => {
     try {
-      const ws = await apiService.getWorkspaces();
+      const ws = await apiService.getWorkspaces() as Workspace[];
       setWorkspaces(ws);
 
       // Auto-select first workspace or create one if none exist
@@ -89,7 +101,7 @@ const App: React.FC = () => {
 
   const handleCreateWorkspace = async (name: string) => {
     try {
-      const newWorkspace = await apiService.createWorkspace(name);
+      const newWorkspace = await apiService.createWorkspace(name) as Workspace;
       setWorkspaces([...workspaces, newWorkspace]);
       setSelectedWorkspace(newWorkspace);
     } catch (error) {

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { EditorView, basicSetup } from 'codemirror';
+import { EditorView, keymap, lineNumbers, highlightActiveLineGutter } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
+import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { WebsocketProvider } from 'y-websocket';
 import { yCollab } from 'y-codemirror.next';
@@ -55,7 +56,10 @@ export const Editor: React.FC<Props> = ({ workspace, user, onBack }) => {
     const state = EditorState.create({
       doc: ytext.toString(),
       extensions: [
-        basicSetup,
+        lineNumbers(),
+        highlightActiveLineGutter(),
+        history(),
+        keymap.of([...defaultKeymap, ...historyKeymap]),
         markdown(),
         yCollab(ytext, provider.awareness),
       ],
@@ -121,9 +125,9 @@ export const Editor: React.FC<Props> = ({ workspace, user, onBack }) => {
 
   const handleImportYesterdayTasks = async () => {
     try {
-      const { tasks } = await apiService.getYesterdayTasks(workspace.id);
+      const result = await apiService.getYesterdayTasks(workspace.id) as { tasks: string[] };
 
-      if (tasks.length === 0) {
+      if (result.tasks.length === 0) {
         alert('No uncompleted tasks from yesterday!');
         return;
       }
@@ -131,7 +135,7 @@ export const Editor: React.FC<Props> = ({ workspace, user, onBack }) => {
       // Insert tasks into editor
       if (viewRef.current) {
         const content = viewRef.current.state.doc.toString();
-        const tasksText = `\n### Tasks from yesterday\n${tasks.map((t: string) => `- [ ] ${t}`).join('\n')}\n`;
+        const tasksText = `\n### Tasks from yesterday\n${result.tasks.map((t: string) => `- [ ] ${t}`).join('\n')}\n`;
 
         viewRef.current.dispatch({
           changes: {
@@ -151,7 +155,7 @@ export const Editor: React.FC<Props> = ({ workspace, user, onBack }) => {
       yesterday.setDate(yesterday.getDate() - 1);
       const dateStr = yesterday.toISOString().split('T')[0];
 
-      const log = await apiService.getLog(workspace.id, dateStr);
+      const log = await apiService.getLog(workspace.id, dateStr) as { content: string } | null;
 
       if (log) {
         setYesterdayContent(log.content);
