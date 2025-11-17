@@ -2,8 +2,11 @@ src/**
 .vscode/**
 .vscode-test/**
 out/**
-node_modules/**/.bin/**
+node_modules/**
 **/*.map
 .gitignore
+.git/**
+../**
 webpack.config.js
 tsconfig.json
+!../resources/**
