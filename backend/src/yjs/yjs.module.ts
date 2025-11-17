@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import { YjsService } from "./yjs.service";
@@ -8,7 +8,7 @@ import { UserModule } from "../user/user.module";
 
 @Module({
   imports: [
-    LogModule,
+    forwardRef(() => LogModule),
     UserModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
